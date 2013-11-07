@@ -7,5 +7,6 @@ if ( ! defined("OST_ROOT"))
 }
 
 require_once (OST_ROOT . "/config.php");
+require_once (OST_ROOT . "/../lib/fpdf/fpdf.php");
 
 ?>
