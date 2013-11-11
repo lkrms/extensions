@@ -1,11 +1,11 @@
 <?php
 
 define("OST_CLI", php_sapi_name() == "cli");
-define("OST_HEADING_SIZE", 16);
+define("OST_HEADING_SIZE", 14);
 define("OST_SUBHEADING_SIZE", 10);
 define("OST_SECTION_HEADING_SIZE", 10);
-define("OST_TABLE_HEADING_SIZE", 8);
-define("OST_TABLE_TEXT_SIZE", 8);
+define("OST_TABLE_HEADING_SIZE", 6);
+define("OST_TABLE_TEXT_SIZE", 8.5);
 define("OST_TABLE_PADDING", 2);
 define("OST_HEADING_LEADING", 1.2);
 define("OST_TEXT_LEADING", 1.2);
@@ -15,6 +15,9 @@ if ( ! defined("OST_ROOT"))
 {
     define("OST_ROOT", dirname(__file__));
 }
+
+// for PEAR
+ini_set("include_path", OST_ROOT . "/../lib/php");
 
 // load settings
 require_once (OST_ROOT . "/config.php");
@@ -49,7 +52,7 @@ class OSTPDF extends FPDF
 
     function Subheading($text)
     {
-        $this->SetFont("", "I", OST_SUBHEADING_SIZE);
+        $this->SetFont("", "", OST_SUBHEADING_SIZE);
         $this->Write(OST_HEADING_SIZE / $this->k * OST_HEADING_LEADING, $text);
     }
 
@@ -95,9 +98,8 @@ class OSTPDF extends FPDF
         $addHeader               = true;
 
         // optimised for A4 portrait
-        $w   = array(15, 15, 20, 90, 20, 15, 15);
-        $h1  = OST_TABLE_HEADING_SIZE / $this->k * OST_TEXT_LEADING;
-        $h2  = OST_TABLE_TEXT_SIZE / $this->k * OST_TEXT_LEADING;
+        $w  = array(15, 15, 20, 90, 20, 15, 15);
+        $h  = OST_TABLE_TEXT_SIZE / $this->k * OST_TEXT_LEADING;
 
         foreach ($tickets as $ticket)
         {
@@ -112,13 +114,13 @@ class OSTPDF extends FPDF
             {
                 // add header row
                 $this->SetFont("", "B", OST_TABLE_HEADING_SIZE);
-                $this->Cell($w[0], $h1, ucfirst(OST_TICKET_SINGULAR));
-                $this->Cell($w[1], $h1, "Due");
-                $this->Cell($w[2], $h1, "Priority", 0, 0, "C");
-                $this->Cell($w[3], $h1, "Subject");
-                $this->Cell($w[4], $h1, "From");
-                $this->Cell($w[5], $h1, "Created");
-                $this->Cell($w[6], $h1, "Response");
+                $this->Cell($w[0], $h, strtoupper(OST_TICKET_SINGULAR));
+                $this->Cell($w[1], $h, strtoupper("Due"));
+                $this->Cell($w[2], $h, strtoupper("Priority"), 0, 0, "C");
+                $this->Cell($w[3], $h, strtoupper("Subject"));
+                $this->Cell($w[4], $h, strtoupper("From"));
+                $this->Cell($w[5], $h, strtoupper("Created"));
+                $this->Cell($w[6], $h, strtoupper("Response"));
                 $this->Ln();
                 $this->SetY($this->GetY() + OST_TABLE_PADDING);
                 $addHeader = false;
@@ -130,16 +132,16 @@ class OSTPDF extends FPDF
             $maxY = 0;
             $this->SetFont("", "", OST_TABLE_TEXT_SIZE);
             $this->SetTextColor(0, 0, 128);
-            $this->Cell($w[0], $h2, $ticket["ticketID"], 0, 0, "L", false, $ostUrl . $ticket["ticket_id"]);
+            $this->Cell($w[0], $h, $ticket["ticketID"], 0, 0, "L", false, $ostUrl . $ticket["ticket_id"]);
             $this->SetTextColor(0, 0, 0);
-            $this->Cell($w[1], $h2, SmartDate($ticket["duedate"]));
-            $this->SetFont("", $ticket["priority_urgency"] < 3 ? "BI" : "", OST_TABLE_TEXT_SIZE);
-            $this->Cell($w[2], $h2, $ticket["priority_desc"], 0, 0, "C", true);
+            $this->Cell($w[1], $h, SmartDate($ticket["duedate"]));
+            $this->SetFont("", $ticket["priority_urgency"] < 3 ? "B" : "", OST_TABLE_TEXT_SIZE);
+            $this->Cell($w[2], $h, $ticket["priority_desc"], 0, 0, "C", true);
             $this->SetFont("", "", OST_TABLE_TEXT_SIZE);
-            $this->DoTicketTableMultiCell($w[3], $h2, $ticket["subject"], $maxY);
-            $this->Cell($w[4], $h2, ShortName($ticket["name"]));
-            $this->Cell($w[5], $h2, SmartDate($ticket["created"]));
-            $this->Cell($w[6], $h2, SmartDate($ticket["lastresponse"]));
+            $this->DoTicketTableMultiCell($w[3], $h, $ticket["subject"], $maxY);
+            $this->Cell($w[4], $h, ShortName($ticket["name"]));
+            $this->Cell($w[5], $h, SmartDate($ticket["created"]));
+            $this->Cell($w[6], $h, SmartDate($ticket["lastresponse"]));
             $this->Ln();
 
             // make sure we clear our highest cell, and add some breathing room before the next row
