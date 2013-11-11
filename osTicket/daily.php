@@ -182,7 +182,8 @@ order by email, duedate, priority_urgency, created
 $rs = $db->query("
 select
     (select `value` from ost_config where `key` = 'helpdesk_title') as helpdesk_title,
-    (select `value` from ost_config where `key` = 'helpdesk_url') as helpdesk_url
+    (select `value` from ost_config where `key` = 'helpdesk_url') as helpdesk_url,
+    (select email from ost_email where email_id = (select `value` from ost_config where `key` = 'default_email_id')) as default_email
 ");
 $ostSettings = $rs->fetch_assoc();
 $rs->close();
@@ -231,21 +232,26 @@ foreach ($staffEmails as $email => $names)
     }
 
     // email the report as an attachment
-    $message = "Hi $names[firstname],
+    $pdfData  = $pdf->Output("", "S");
+    $message  = "Hi $names[firstname],
 
 Your job sheet for today is attached. May it help you to have a productive day!
 
 Hugs,
 
-$ostSettings[helpdesk_title]";
+$ostSettings[helpdesk_title]
+
+";
 
     // we'll use PEAR for this
     $mime = new Mail_mime();
     $mime->setTXTBody($message);
-    $mime->addAttachment($pdf->Output("", "S"), "application/pdf", "$names[firstname]_$names[lastname]_" . date("Ymd") . ".pdf", false);
+    $mime->addAttachment($pdfData, "application/pdf", "$names[firstname]$names[lastname]" . date("ymd") . ".pdf", false);
     $body     = $mime->get();
-    $headers  = $mime->headers( array("From" => "", "Subject" => "Your work for today"));
-    $mail     = Mail::factory("mail");
+    $headers  = $mime->headers( array("From" => "$ostSettings[helpdesk_title] <$ostSettings[default_email]>", "Subject" => "Your work for today"));
+
+    // finally! ready to send!
+    $mail = @Mail::factory("mail");
     $mail->send($email, $headers, $body);
 }
 

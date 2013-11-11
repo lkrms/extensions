@@ -2,7 +2,7 @@
 
 define("OST_CLI", php_sapi_name() == "cli");
 define("OST_HEADING_SIZE", 14);
-define("OST_SUBHEADING_SIZE", 10);
+define("OST_SUBHEADING_SIZE", 8.5);
 define("OST_SECTION_HEADING_SIZE", 10);
 define("OST_TABLE_HEADING_SIZE", 6);
 define("OST_TABLE_TEXT_SIZE", 8.5);
