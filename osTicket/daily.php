@@ -219,7 +219,7 @@ foreach ($staffEmails as $email => $names)
     if (isset($pending[$email]))
     {
         $c = count($pending[$email]);
-        AddJobSheetSection($pdf, ($c > 1 ? OST_TICKET_PLURAL : OST_TICKET_SINGULAR) . " assigned to you", $pending[$email]);
+        AddJobSheetSection($pdf, ucfirst($c > 1 ? OST_TICKET_PLURAL : OST_TICKET_SINGULAR) . " assigned to you", $pending[$email]);
     }
 
     $pdf->Output(OST_ROOT . "/.tmp/$email.pdf", "F");

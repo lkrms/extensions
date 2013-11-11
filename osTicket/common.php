@@ -1,11 +1,11 @@
 <?php
 
 define("OST_CLI", php_sapi_name() == "cli");
-define("OST_HEADING_SIZE", 18);
-define("OST_SUBHEADING_SIZE", 14);
-define("OST_SECTION_HEADING_SIZE", 12);
-define("OST_TABLE_HEADING_SIZE", 9);
-define("OST_TABLE_TEXT_SIZE", 9);
+define("OST_HEADING_SIZE", 16);
+define("OST_SUBHEADING_SIZE", 12);
+define("OST_SECTION_HEADING_SIZE", 10);
+define("OST_TABLE_HEADING_SIZE", 8);
+define("OST_TABLE_TEXT_SIZE", 8);
 define("OST_TABLE_PADDING", 2);
 define("OST_HEADING_LEADING", 1.2);
 define("OST_TEXT_LEADING", 1.2);
@@ -27,6 +27,10 @@ date_default_timezone_set(OST_TIMEZONE);
 
 class OSTPDF extends FPDF
 {
+    private $inTicketTable = false;
+
+    private $breakTicketTable = false;
+
     function OSTPDF($orientation = "P", $unit = "mm", $size = "A4")
     {
         parent::__construct($orientation, $unit, $size);
@@ -53,39 +57,73 @@ class OSTPDF extends FPDF
         $this->Write(OST_HEADING_SIZE / $this->k * OST_HEADING_LEADING, $text);
     }
 
+    function AcceptPageBreak()
+    {
+        if ( ! $this->inTicketTable)
+        {
+            return parent::AcceptPageBreak();
+        }
+        else
+        {
+            $this->breakTicketTable = true;
+
+            return false;
+        }
+    }
+
     function TicketTable($tickets)
     {
-        // optimised for A4 portrait
-        $w   = array(20, 20, 75, 35, 20, 20);
-        $h1  = (OST_TABLE_HEADING_SIZE / $this->k * OST_TEXT_LEADING) + OST_TABLE_PADDING;
-        $h2  = OST_TABLE_TEXT_SIZE / $this->k * OST_TEXT_LEADING;
+        $this->inTicketTable     = true;
+        $this->breakTicketTable  = false;
+        $addHeader               = true;
 
-        // add header row
-        $this->SetFont("", "B", OST_TABLE_HEADING_SIZE);
-        $this->Cell($w[0], $h1, ucfirst(OST_TICKET_SINGULAR));
-        $this->Cell($w[1], $h1, "Due");
-        $this->Cell($w[2], $h1, "Subject");
-        $this->Cell($w[3], $h1, "From");
-        $this->Cell($w[4], $h1, "Created");
-        $this->Cell($w[5], $h1, "Response");
-        $this->Ln();
+        // optimised for A4 portrait
+        $w   = array(15, 15, 20, 90, 20, 15, 15);
+        $h1  = OST_TABLE_HEADING_SIZE / $this->k * OST_TEXT_LEADING;
+        $h2  = OST_TABLE_TEXT_SIZE / $this->k * OST_TEXT_LEADING;
 
         foreach ($tickets as $ticket)
         {
+            if ($this->breakTicketTable)
+            {
+                $this->breakTicketTable = false;
+                $this->AddPage();
+                $addHeader = true;
+            }
+
+            if ($addHeader)
+            {
+                // add header row
+                $this->SetFont("", "B", OST_TABLE_HEADING_SIZE);
+                $this->Cell($w[0], $h1, ucfirst(OST_TICKET_SINGULAR));
+                $this->Cell($w[1], $h1, "Due");
+                $this->Cell($w[2], $h1, "Priority");
+                $this->Cell($w[3], $h1, "Subject");
+                $this->Cell($w[4], $h1, "From");
+                $this->Cell($w[5], $h1, "Created");
+                $this->Cell($w[6], $h1, "Response");
+                $this->Ln();
+                $this->SetY($this->GetY() + OST_TABLE_PADDING);
+                $addHeader = false;
+            }
+
             $maxY = 0;
             $this->SetFont("", "", OST_TABLE_TEXT_SIZE);
             $this->Cell($w[0], $h2, $ticket["ticketID"]);
             $this->Cell($w[1], $h2, SmartDate($ticket["duedate"]));
-            $this->DoTicketTableMultiCell($w[2], $h2, $ticket["subject"], $maxY);
-            $this->DoTicketTableMultiCell($w[3], $h2, $ticket["name"], $maxY);
-            $this->Cell($w[4], $h2, SmartDate($ticket["created"]));
-            $this->Cell($w[5], $h2, SmartDate($ticket["lastresponse"]));
+            $this->Cell($w[2], $h2, $ticket["priority_desc"]);
+            $this->DoTicketTableMultiCell($w[3], $h2, $ticket["subject"], $maxY);
+            $this->Cell($w[4], $h2, ShortName($ticket["name"]));
+            $this->Cell($w[5], $h2, SmartDate($ticket["created"]));
+            $this->Cell($w[6], $h2, SmartDate($ticket["lastresponse"]));
             $this->Ln();
 
             // make sure we clear our highest cell, and add some breathing room before the next row
             $y = $this->GetY();
             $this->SetY(($maxY > $y ? $maxY : $y) + OST_TABLE_PADDING);
         }
+
+        $this->inTicketTable = false;
     }
 
     private function DoTicketTableMultiCell($w, $h, $text, & $maxY)
@@ -109,6 +147,18 @@ function SmartDate($dateString)
     $date = strtotime($dateString);
 
     return date(OST_GENERAL_DATE_FORMAT, $date);
+}
+
+function ShortName($fullName)
+{
+    $names = explode(" ", $fullName);
+
+    for ($i = 0; $i < count($names) - 1; $i++)
+    {
+        $names[$i] = substr($names[$i], 0, 1) . ".";
+    }
+
+    return implode(" ", $names);
 }
 
 // PRETTY_NESTED_ARRAYS,0
