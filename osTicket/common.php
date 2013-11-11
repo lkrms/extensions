@@ -21,6 +21,8 @@ require_once (OST_ROOT . "/config.php");
 
 // load libraries
 require_once (OST_ROOT . "/../lib/fpdf/fpdf.php");
+require_once (OST_ROOT . "/../lib/php/Mail.php");
+require_once (OST_ROOT . "/../lib/php/Mail/mime.php");
 
 // required for date() calls
 date_default_timezone_set(OST_TIMEZONE);
