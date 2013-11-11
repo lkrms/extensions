@@ -2,7 +2,7 @@
 
 define("OST_CLI", php_sapi_name() == "cli");
 define("OST_HEADING_SIZE", 16);
-define("OST_SUBHEADING_SIZE", 12);
+define("OST_SUBHEADING_SIZE", 10);
 define("OST_SECTION_HEADING_SIZE", 10);
 define("OST_TABLE_HEADING_SIZE", 8);
 define("OST_TABLE_TEXT_SIZE", 8);
@@ -127,9 +127,13 @@ class OSTPDF extends FPDF
             $this->SetFillColor($priorityRGB[0], $priorityRGB[1], $priorityRGB[2]);
             $maxY = 0;
             $this->SetFont("", "", OST_TABLE_TEXT_SIZE);
+            $this->SetTextColor(0, 0, 128);
             $this->Cell($w[0], $h2, $ticket["ticketID"], 0, 0, "L", false, $ostUrl . $ticket["ticket_id"]);
+            $this->SetTextColor(0, 0, 0);
             $this->Cell($w[1], $h2, SmartDate($ticket["duedate"]));
+            $this->SetFont("", $ticket["priority_urgency"] < 3 ? "BI" : "", OST_TABLE_TEXT_SIZE);
             $this->Cell($w[2], $h2, $ticket["priority_desc"], 0, 0, "C", true);
+            $this->SetFont("", "", OST_TABLE_TEXT_SIZE);
             $this->DoTicketTableMultiCell($w[3], $h2, $ticket["subject"], $maxY);
             $this->Cell($w[4], $h2, ShortName($ticket["name"]));
             $this->Cell($w[5], $h2, SmartDate($ticket["created"]));
@@ -155,14 +159,43 @@ class OSTPDF extends FPDF
     }
 }
 
-function SmartDate($dateString)
+function SmartDate($dateString, $short = true)
 {
-    if ( ! $dateString || $dateString == "0000-00-00 00:00:00")
+    if ( ! $dateString || $dateString == "0000-00-00 00:00:00" || $dateString == "0000-00-00")
     {
         return "";
     }
 
-    $date = strtotime($dateString);
+    // remove time from consideration
+    $date   = strtotime(date("Y-m-d", strtotime($dateString)));
+    $today  = strtotime(date("Y-m-d"));
+
+    // diff is in seconds
+    $diff = $today - $date;
+
+    // don't do anything "smart" with future dates
+    if ($diff >= 0)
+    {
+        $days   = round($diff / 86400);
+        $weeks  = floor($days / 7);
+
+        if ($days == 0)
+        {
+            return "Today";
+        }
+        elseif ($days == 1)
+        {
+            return $short ? "1d ago" : "Yesterday";
+        }
+        elseif ($days < 7)
+        {
+            return $days . ($short ? "d ago" : " days ago");
+        }
+        elseif ($weeks < 10)
+        {
+            return $weeks . ($short ? "w ago" : " weeks ago");
+        }
+    }
 
     return date(OST_GENERAL_DATE_FORMAT, $date);
 }

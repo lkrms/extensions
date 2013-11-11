@@ -175,7 +175,7 @@ where ost_ticket.status <> 'closed'
     and (ost_ticket.duedate is null
     or ost_ticket.duedate >= adddate(curdate(), " . (OST_UPCOMING_DAYS + 1) . "))
     and ost_ticket.isoverdue = 0
-order by email, duedate, priority_urgency, lastresponse
+order by email, duedate, priority_urgency, created
 "), $pending);
 
 // load settings from osTicket
