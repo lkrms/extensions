@@ -71,7 +71,22 @@ class OSTPDF extends FPDF
         }
     }
 
-    function TicketTable($tickets)
+    function GetRGB($webColor, $default = null)
+    {
+        $webColor  = strtolower(trim($webColor));
+        $matches   = array();
+
+        if (preg_match('/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/', $webColor, $matches))
+        {
+            return array(hexdec($matches[1]), hexdec($matches[2]), hexdec($matches[3]));
+        }
+        else
+        {
+            return is_null($default) ? array(0, 0, 0) : $default;
+        }
+    }
+
+    function TicketTable($tickets, $ostUrl)
     {
         $this->inTicketTable     = true;
         $this->breakTicketTable  = false;
@@ -97,7 +112,7 @@ class OSTPDF extends FPDF
                 $this->SetFont("", "B", OST_TABLE_HEADING_SIZE);
                 $this->Cell($w[0], $h1, ucfirst(OST_TICKET_SINGULAR));
                 $this->Cell($w[1], $h1, "Due");
-                $this->Cell($w[2], $h1, "Priority");
+                $this->Cell($w[2], $h1, "Priority", 0, 0, "C");
                 $this->Cell($w[3], $h1, "Subject");
                 $this->Cell($w[4], $h1, "From");
                 $this->Cell($w[5], $h1, "Created");
@@ -107,11 +122,14 @@ class OSTPDF extends FPDF
                 $addHeader = false;
             }
 
+            // fill with our priority colour wherever desired
+            $priorityRGB = $this->GetRGB($ticket["priority_color"], array(255, 255, 255));
+            $this->SetFillColor($priorityRGB[0], $priorityRGB[1], $priorityRGB[2]);
             $maxY = 0;
             $this->SetFont("", "", OST_TABLE_TEXT_SIZE);
-            $this->Cell($w[0], $h2, $ticket["ticketID"]);
+            $this->Cell($w[0], $h2, $ticket["ticketID"], 0, 0, "L", false, $ostUrl . $ticket["ticket_id"]);
             $this->Cell($w[1], $h2, SmartDate($ticket["duedate"]));
-            $this->Cell($w[2], $h2, $ticket["priority_desc"]);
+            $this->Cell($w[2], $h2, $ticket["priority_desc"], 0, 0, "C", true);
             $this->DoTicketTableMultiCell($w[3], $h2, $ticket["subject"], $maxY);
             $this->Cell($w[4], $h2, ShortName($ticket["name"]));
             $this->Cell($w[5], $h2, SmartDate($ticket["created"]));

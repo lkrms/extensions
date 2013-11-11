@@ -39,8 +39,9 @@ function SplitRecords(mysqli_result $rs, array & $arr)
 
 function AddJobSheetSection(OSTPDF & $pdf, $heading, array & $tickets)
 {
+    global $ostSettings;
     $pdf->SectionHeading("\n$heading\n");
-    $pdf->TicketTable($tickets);
+    $pdf->TicketTable($tickets, $ostSettings["helpdesk_url"] . "scp/tickets.php?id=");
 }
 
 $db = new mysqli(DBHOST, DBUSER, DBPASS, DBNAME);
@@ -189,6 +190,12 @@ $rs->close();
 // won't be needing this anymore
 $db->close();
 
+// ensure our URL has a trailing slash
+if (substr($ostSettings["helpdesk_url"], strlen($ostSettings["helpdesk_url"]) - 1, 1) != "/")
+{
+    $ostSettings["helpdesk_url"] .= "/";
+}
+
 foreach ($staffEmails as $email => $names)
 {
     echo "Preparing PDF for $names[firstname] $names[lastname] <$email>...\n";
@@ -208,12 +215,13 @@ foreach ($staffEmails as $email => $names)
     if (isset($today[$email]))
     {
         $c = count($today[$email]);
-        AddJobSheetSection($pdf, "Your " . ($c > 1 ? OST_TICKET_PLURAL : OST_TICKET_SINGULAR) . " for today", $today[$email]);
+        AddJobSheetSection($pdf, ucfirst($c > 1 ? OST_TICKET_PLURAL : OST_TICKET_SINGULAR) . " for today", $today[$email]);
     }
 
     if (isset($upcoming[$email]))
     {
-        AddJobSheetSection($pdf, "Due in the next " . OST_UPCOMING_DAYS . " days", $upcoming[$email]);
+        $c = count($upcoming[$email]);
+        AddJobSheetSection($pdf, ucfirst($c > 1 ? OST_TICKET_PLURAL : OST_TICKET_SINGULAR) . " due in the next " . OST_UPCOMING_DAYS . " days", $upcoming[$email]);
     }
 
     if (isset($pending[$email]))
