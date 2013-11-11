@@ -230,7 +230,23 @@ foreach ($staffEmails as $email => $names)
         AddJobSheetSection($pdf, ucfirst($c > 1 ? OST_TICKET_PLURAL : OST_TICKET_SINGULAR) . " assigned to you", $pending[$email]);
     }
 
-    $pdf->Output(OST_ROOT . "/.tmp/$email.pdf", "F");
+    // email the report as an attachment
+    $message = "Hi $names[firstname],
+
+Your job sheet for today is attached. May it help you to have a productive day!
+
+Hugs,
+
+$ostSettings[helpdesk_title]";
+
+    // we'll use PEAR for this
+    $mime = new Mail_mime();
+    $mime->setTXTBody($message);
+    $mime->addAttachment($pdf->Output("", "S"), "application/pdf", "$names[firstname]_$names[lastname]_" . date("Ymd") . ".pdf", false);
+    $body     = $mime->get();
+    $headers  = $mime->headers( array("From" => "", "Subject" => "Your work for today"));
+    $mail     = Mail::factory("mail");
+    $mail->send($email, $headers, $body);
 }
 
 // PRETTY_NESTED_ARRAYS,0
