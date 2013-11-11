@@ -171,30 +171,33 @@ function SmartDate($dateString, $short = true)
     $today  = strtotime(date("Y-m-d"));
 
     // diff is in seconds
-    $diff = $today - $date;
+    $diff  = $today - $date;
+    $past  = true;
 
-    // don't do anything "smart" with future dates
-    if ($diff >= 0)
+    if ($diff < 0)
     {
-        $days   = round($diff / 86400);
-        $weeks  = floor($days / 7);
+        $past  = false;
+        $diff  = abs($diff);
+    }
 
-        if ($days == 0)
-        {
-            return "Today";
-        }
-        elseif ($days == 1)
-        {
-            return $short ? "1d ago" : "Yesterday";
-        }
-        elseif ($days < 7)
-        {
-            return $days . ($short ? "d ago" : " days ago");
-        }
-        elseif ($weeks < 10)
-        {
-            return $weeks . ($short ? "w ago" : " weeks ago");
-        }
+    $days   = round($diff / 86400);
+    $weeks  = floor($days / 7);
+
+    if ($days == 0)
+    {
+        return "Today";
+    }
+    elseif ($days == 1)
+    {
+        return $past ? ($short ? "1d ago" : "Yesterday") : ($short ? "1d" : "Tomorrow");
+    }
+    elseif ($days < 7)
+    {
+        return $days . ($short ? "d" : " days") . ($past ? " ago" : "");
+    }
+    elseif ($weeks < 10)
+    {
+        return $weeks . ($short ? "w" : " weeks") . ($past ? " ago" : "");
     }
 
     return date(OST_GENERAL_DATE_FORMAT, $date);
