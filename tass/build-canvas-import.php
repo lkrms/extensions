@@ -21,7 +21,7 @@ $csv = array(
         "sql" => array(
 
             // all current students
-            "select student.stud_code as user_id, eud21_text as login_id, '' as password, coalesce(preferred_name, given_name) as first_name, surname as last_name, e_mail as email, 'active' as status
+            "select student.stud_code as user_id, eud21_text as login_id, null as password, coalesce(preferred_name, given_name) as first_name, surname as last_name, e_mail as email, 'active' as status
 from student
     inner join studeuddata on student.stud_code = studeuddata.stud_code and studeuddata.cmpy_code = '01' and studeuddata.area_code = 4
 where student.cmpy_code = '01'
@@ -33,7 +33,7 @@ where student.cmpy_code = '01'
 order by last_name, first_name",
 
             // all current permanent staff (including admin staff)
-            "select telemf.emp_code as user_id, eud21_text as login_id, '' as password, coalesce(prefer_name_text, given_names_text) as first_name, surname_text as last_name, e_mail as email, 'active' as status
+            "select telemf.emp_code as user_id, eud21_text as login_id, null as password, coalesce(prefer_name_text, given_names_text) as first_name, surname_text as last_name, e_mail as email, 'active' as status
 from telemf
     inner join tel_euddata on telemf.emp_code = tel_euddata.emp_code and tel_euddata.cust_code = '01' and tel_euddata.area_code = 4
 where telemf.cust_code = '01'
@@ -43,6 +43,23 @@ where telemf.cust_code = '01'
     and eud21_text is not null
     and e_mail is not null
 order by last_name, first_name",
+        ),
+    ),
+
+    // don't think "accounts", think "departments"
+    "accounts" => array(
+        "columns" => array(
+            "account_id",    // TASS "dept_code"
+            "parent_account_id",    // no nested departments, so leave this blank
+            "name",
+            "status"    // active
+        ),
+        "sql" => array(
+            "select dept_code as account_id, null as parent_account_id, dept_desc as name, 'active' as status
+from subdept
+where cmpy_code = '01'
+    and not dept_code in ('NO', 'CAS')
+order by dept_code"
         ),
     ),
     "terms" => array(
@@ -65,6 +82,162 @@ where cmpy_code = '01'
     and end_date >= GETDATE()
 order by term_id"
         ),
+    ),
+
+    // think "subjects", not "courses"
+    "courses" => array(
+        "columns" => array(
+            "course_id",    // e.g. 2013T4C7600
+            "short_name",    // e.g. 7TEC
+            "long_name",    // e.g. Year 7 Technology
+            "account_id",    // e.g. TAS
+            "term_id",    // e.g. 2013T4
+            "status",    // active
+            "start_date",    // inherits term dates if not specified
+            "end_date"
+        ),
+        "dateColumns" => array(
+            6,
+            7
+        ),
+        "sql" => array(
+            "select distinct attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code as course_id,
+    subtab.sub_short as short_name,
+    case LEFT(tchsub.sub_code, 1)
+        when '7' then 'Year 7'
+        when '8' then 'Year 8'
+        when '9' then 'Year 9'
+        when '0' then 'Year 10'
+        when '1' then 'Year 11'
+        when '2' then 'Year 12'
+        else case LEFT(tchsub.sub_code, 2)
+            when '30' then 'Kindy'
+            when '31' then 'Year 1'
+            when '32' then 'Year 2'
+            when '33' then 'Year 3'
+            when '34' then 'Year 4'
+            when '35' then 'Year 5'
+            when '36' then 'Year 6'
+        end
+    end + ' ' + subtab.sub_long as long_name,
+    subtab.dept_code as account_id,
+    attendprd.att_year + 'T' + attendprd.att_period as term_id,
+    'active' as status,
+    null as start_date,
+    null as end_date
+from attendprd
+    inner join tchsub on tchsub.cmpy_code = '01' and attendprd.att_year = tchsub.year_num and attendprd.semester = tchsub.semester
+    inner join subtab on subtab.cmpy_code = '01' and tchsub.sub_code = subtab.sub_code
+    inner join subdept on subdept.cmpy_code = '01' and subtab.dept_code = subdept.dept_code
+where attendprd.cmpy_code = '01'
+    and YEAR(attendprd.start_date) <= YEAR(getdate()) + 1
+    and attendprd.end_date >= GETDATE()
+    and subtab.rpt_flg = 'Y'
+    and not subtab.dept_code in ('NO', 'CAS')
+    and not subtab.sub_short in ('GC')
+order by short_name, course_id"
+        ),
+    ),
+
+    // think "classes", not "sections"
+    "sections" => array(
+        "columns" => array(
+            "section_id",    // e.g. 2013T4C7600LR2
+            "course_id",    // e.g. 2013T4C7600
+            "name",    // e.g. Technology LR2
+            "status",    // active
+            "start_date",    // inherits course dates if not specified
+            "end_date"
+        ),
+        "dateColumns" => array(
+            4,
+            5
+        ),
+        "sql" => array(
+            "select distinct attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code + 'L' + tchsub.class as section_id,
+    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code as course_id,
+    rtrim(subtab.sub_long) + ' ' + tchsub.class as name,
+    'active' as status,
+    null as start_date,
+    null as end_date
+from attendprd
+    inner join tchsub on tchsub.cmpy_code = '01' and attendprd.att_year = tchsub.year_num and attendprd.semester = tchsub.semester
+    inner join subtab on subtab.cmpy_code = '01' and tchsub.sub_code = subtab.sub_code
+    inner join subdept on subdept.cmpy_code = '01' and subtab.dept_code = subdept.dept_code
+where attendprd.cmpy_code = '01'
+    and YEAR(attendprd.start_date) <= YEAR(getdate()) + 1
+    and attendprd.end_date >= GETDATE()
+    and subtab.rpt_flg = 'Y'
+    and not subtab.dept_code in ('NO', 'CAS')
+    and not subtab.sub_short in ('GC')
+order by name, section_id"
+        ),
+    ),
+
+    // assigns students AND teachers to courses / sections
+    "enrollments" => array(
+        "columns" => array(
+            "course_id",
+            "user_id",
+            "role",    // "student" or "teacher"
+            "section_id",
+            "status",    // active, deleted, completed
+        ),
+        "sql" => array(
+            "select distinct null as course_id,
+    studsub.stud_code as user_id,
+    'student' as role,
+    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code + 'L' + tchsub.class as section_id,
+    'active' as status,
+    null as associated_user_id
+from attendprd
+    inner join tchsub on tchsub.cmpy_code = '01' and attendprd.att_year = tchsub.year_num and attendprd.semester = tchsub.semester
+    inner join subtab on subtab.cmpy_code = '01' and tchsub.sub_code = subtab.sub_code
+    inner join subdept on subdept.cmpy_code = '01' and subtab.dept_code = subdept.dept_code
+    inner join studsub on studsub.cmpy_code = '01' and tchsub.year_num = studsub.yr_study and tchsub.semester = studsub.semester and tchsub.sub_code = studsub.sub_code and tchsub.class = studsub.class
+where attendprd.cmpy_code = '01'
+    and YEAR(attendprd.start_date) <= YEAR(getdate()) + 1
+    and attendprd.end_date >= GETDATE()
+    and subtab.rpt_flg = 'Y'
+    and not subtab.dept_code in ('NO', 'CAS')
+    and not subtab.sub_short in ('GC')
+order by section_id, user_id",
+            "select null as course_id,
+    teacher.emp_code as user_id,
+    'teacher' as role,
+    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code + 'L' + tchsub.class as section_id,
+    'active' as status,
+    null as associated_user_id
+from attendprd
+    inner join tchsub on tchsub.cmpy_code = '01' and attendprd.att_year = tchsub.year_num and attendprd.semester = tchsub.semester
+    inner join subtab on subtab.cmpy_code = '01' and tchsub.sub_code = subtab.sub_code
+    inner join subdept on subdept.cmpy_code = '01' and subtab.dept_code = subdept.dept_code
+    inner join teacher on teacher.cmpy_code = '01' and tchsub.tch_code = teacher.tch_code
+where attendprd.cmpy_code = '01'
+    and YEAR(attendprd.start_date) <= YEAR(getdate()) + 1
+    and attendprd.end_date >= GETDATE()
+    and subtab.rpt_flg = 'Y'
+    and not subtab.dept_code in ('NO', 'CAS')
+    and not subtab.sub_short in ('GC')
+order by section_id, user_id"
+        ),
+    ),
+    "groups" => array(
+        "columns" => array(
+            "group_id",
+            "account_id",
+            "name",
+            "status",    // available, closed, completed, deleted
+        ),
+        "sql" => array(),
+    ),
+    "groups_membership" => array(
+        "columns" => array(
+            "group_id",
+            "user_id",
+            "status",    // accepted, deleted
+        ),
+        "sql" => array(),
     ),
 );
 
