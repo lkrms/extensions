@@ -1,6 +1,6 @@
 <?php
 
-// mssql connection specifics
+// TASS database credentials
 define("TASS_DB_SERVER", "TASS01");
 define("TASS_DB_USERNAME", "read_only_user");
 define("TASS_DB_PASSWORD", "PASSWORD");    // NOTE: must be <= 30 characters
