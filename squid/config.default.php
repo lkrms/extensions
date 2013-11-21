@@ -12,6 +12,9 @@ define("SQUID_DEFAULT_REDIRECT", "http://www.mydomain.com/");
 // how many seconds to wait for MySQL / Profile Manager / LDAP connections
 define("SQUID_CONNECT_TIMEOUT", 4);
 
+// how many seconds to cache credentials for (unless an explicit session expiry has been set)
+define("SQUID_DEFAULT_TTL", 300);
+
 // LDAP settings (credentials are used when checking group membership)
 define("SQUID_LDAP_SERVER", "DC01");
 define("SQUID_LDAP_USER_DN", "CN=Squid,OU=Users,DC=mydomain,DC=local");
