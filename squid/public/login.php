@@ -17,7 +17,7 @@ function _get($name, $default = "")
 
 $loggedIn  = false;
 $un        = "visitor";
-$redirect  = _get("redirect", isset($_SERVER["HTTP_REFERER"]) ? $_SERVER["HTTP_REFERER"] : SQUID_DEFAULT_REDIRECT);
+$redirect  = _get("redirect", isset($_GET["r"]) ? $_GET["r"] : SQUID_DEFAULT_REDIRECT);
 
 // determine the client's IP and MAC addresses
 $srcIP    = $_SERVER["REMOTE_ADDR"];
