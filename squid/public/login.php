@@ -119,7 +119,7 @@ $conn->close();
 
 if ($loggedIn)
 {
-    $feedback = "<p style='color:#008000'>You are logged in as <strong>$un.</strong> You will now be redirected to the page you originally requested.</p>";
+    $feedback = "<p style='color:#008000'>You are logged in as <strong>$un.</strong> You will now be redirected to the page you originally requested. It may take up to 60 seconds for this screen to go away.</p>";
 }
 
 ?>
@@ -131,7 +131,7 @@ if ($loggedIn)
 
 if ($loggedIn && $redirect)
 {
-    print '<meta http-equiv="refresh" content="5;URL=\'' . $redirect . '\'" />';
+    print '<meta http-equiv="refresh" content="10;URL=\'' . $redirect . '\'" />';
 }
 
 ?>
