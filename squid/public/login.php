@@ -11,7 +11,7 @@ function _get($name, $default = "")
     }
     else
     {
-        return "";
+        return $default;
     }
 }
 
