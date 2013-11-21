@@ -57,4 +57,7 @@ define("SQUID_FAILURE_CODE", "ERR");
 // timezone for this instance of Squid
 define("SQUID_TIMEZONE", "Australia/Sydney");
 
+// there's a good chance arp won't be in Apache's PATH
+define("SQUID_ARP_PATH", "/usr/sbin/arp");
+
 ?>

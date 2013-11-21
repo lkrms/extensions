@@ -21,7 +21,7 @@ $redirect  = _get("redirect", isset($_SERVER["HTTP_REFERER"]) ? $_SERVER["HTTP_R
 
 // determine the client's IP and MAC addresses
 $srcIP    = $_SERVER["REMOTE_ADDR"];
-$arp      = `arp -n $srcIP`;
+$arp      = shell_exec(SQUID_ARP_PATH . " -n $srcIP");
 $mac      = "";
 $matches  = array();
 
