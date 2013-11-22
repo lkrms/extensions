@@ -38,7 +38,7 @@ function cacheResult($ip, $mac, $group, $username, $ttl)
     {
         $key = "$ip||$mac||$group";
         $mc->set($key, $username, $ttl);
-        writeLog("Cached: $key => $username (TTL {$ttl}s)", true);
+        writeLog("Cached: $key => " . ($username ? $username : "NOT AUTHORISED") . " (TTL {$ttl}s)", true);
     }
 }
 
@@ -53,8 +53,16 @@ function checkCache($ip, $mac, $group)
 
         if ($un !== false)
         {
-            writeReply("OK user=$un");
-            writeLog("Retrieved from cache: $key => $un", true);
+            if ( ! is_null($un))
+            {
+                writeReply("OK user=$un");
+            }
+            else
+            {
+                writeReply("ERR");
+            }
+
+            writeLog("Retrieved from cache: $key => " . ($un ? $un : "NOT AUTHORISED"), true);
 
             return true;
         }
@@ -197,6 +205,7 @@ while ( ! feof(STDIN))
                 if ( ! isset($SQUID_LDAP_GROUP_DN[$input[1]]))
                 {
                     writeReply(SQUID_FAILURE_CODE . " message=\"No matching group DN found for '$input[1]'.\"");
+                    cacheResult($srcIP, $mac, $input[1], null, SQUID_MAX_TTL);
 
                     continue;
                 }
@@ -223,6 +232,7 @@ while ( ! feof(STDIN))
                     else
                     {
                         writeReply("ERR");
+                        cacheResult($srcIP, $mac, $input[1], null, $ttl);
 
                         continue;
                     }
@@ -289,6 +299,7 @@ while ( ! feof(STDIN))
             else
             {
                 writeReply(SQUID_FAILURE_CODE . " message=\"No matching group DN found for '$input[1]'.\"");
+                cacheResult($srcIP, $mac, $input[1], null, SQUID_MAX_TTL);
 
                 continue;
             }
@@ -315,6 +326,7 @@ while ( ! feof(STDIN))
     }
 
     writeReply("ERR");
+    cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", null, $ttl);
 }
 
 writeLog("$count requests processed, average processing time " . ($count ? $time / $count : 0) . "s");
