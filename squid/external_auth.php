@@ -171,6 +171,18 @@ while ( ! feof(STDIN))
         continue;
     }
 
+    // is Squid telling us that other authentication has passed?
+    if (isset($input[1]) && substr($input[1], 0, 2) == "__")
+    {
+        writeReply("OK");
+
+        // cache accordingly if so
+        $input[1] = substr($input[1], 2);
+        cacheResult($srcIP, $mac, $input[1], null, $ttl);
+
+        continue;
+    }
+
     if (checkCache($srcIP, $mac, isset($input[1]) ? $input[1] : ""))
     {
         continue;
