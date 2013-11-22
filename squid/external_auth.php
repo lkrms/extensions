@@ -179,6 +179,11 @@ while ( ! feof(STDIN))
             // enforce the session expiry time
             $ttl = $row[1] + 0;
 
+            if ($ttl > SQUID_MAX_TTL)
+            {
+                $ttl = SQUID_MAX_TTL;
+            }
+
             if ( ! isset($input[1]))
             {
                 writeReply("OK user=$row[0]");

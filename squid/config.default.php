@@ -14,6 +14,7 @@ define("SQUID_CONNECT_TIMEOUT", 4);
 
 // how many seconds to cache credentials for (unless an explicit session expiry has been set)
 define("SQUID_DEFAULT_TTL", 300);
+define("SQUID_MAX_TTL", 300);
 
 // LDAP settings (credentials are used when checking group membership)
 define("SQUID_LDAP_SERVER", "DC01");
