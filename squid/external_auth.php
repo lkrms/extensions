@@ -18,7 +18,11 @@ function writeLog($message, $verbose = false)
 function writeReply($reply)
 {
     global $count, $time, $requestStart, $requestEnd;
+
+    // reply to Squid
     fwrite(STDOUT, "$reply\n");
+
+    // update metrics
     $requestEnd   = microtime(true);
     $requestTime  = $requestEnd - $requestStart;
     $time        += $requestTime;
@@ -26,9 +30,41 @@ function writeReply($reply)
     writeLog("Reply: $reply (processed in {$requestTime}s)", true);
 }
 
+function cacheResult($ip, $mac, $group, $username, $ttl)
+{
+    global $mc;
+
+    if ($mc)
+    {
+        $key = "$ip||$mac||$group";
+        $mc->set($key, $username, $ttl);
+        writeLog("Cached: $key => $username (TTL {$ttl}s)", true);
+    }
+}
+
+function checkCache($ip, $mac, $group)
+{
+    global $mc;
+
+    if ($mc)
+    {
+        $key  = "$ip||$mac||$group";
+        $un   = $mc->get($key);
+
+        if ($un !== false)
+        {
+            writeReply("OK user=$un");
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function cleanUp()
 {
-    global $ad, $pconn;
+    global $ad, $pconn, $mconn;
 
     if (isset($ad))
     {
@@ -39,7 +75,13 @@ function cleanUp()
     if (isset($pconn))
     {
         pg_close($pconn);
-        unset($GLOBALS["conn"]);
+        unset($GLOBALS["pconn"]);
+    }
+
+    if (isset($mconn))
+    {
+        mysqli_close($mconn);
+        unset($GLOBALS["mconn"]);
     }
 }
 
@@ -48,6 +90,15 @@ $start  = microtime(true);
 $count  = 0;
 $time   = 0;
 $pmcs   = "host=" . SQUID_PM_DB_SERVER . " port=" . SQUID_PM_DB_PORT . " dbname=" . SQUID_PM_DB_NAME . " user=" . SQUID_PM_DB_USERNAME . " password='" . addslashes(SQUID_PM_DB_PASSWORD) . "' connect_timeout=" . SQUID_CONNECT_TIMEOUT;
+
+// to minimise login latency, we do our own caching
+$mc = new Memcached();
+
+if ( ! $mc->addServer("localhost", 11211))
+{
+    $mc = null;
+    writeLog("WARNING: unable to connect to Memcached server on localhost. Caching has been disabled. This will adversely affect performance.");
+}
 
 while ( ! feof(STDIN))
 {
@@ -111,7 +162,11 @@ while ( ! feof(STDIN))
         continue;
     }
 
-    // TODO: check memcached
+    if (checkCache($srcIP, $mac, isset($input[1]) ? $input[1] : ""))
+    {
+        continue;
+    }
+
     // check for a match in BYOD database (i.e. fastest query first)
     $mconn = mysqli_connect(SQUID_BYOD_DB_SERVER, SQUID_BYOD_DB_USERNAME, SQUID_BYOD_DB_PASSWORD, SQUID_BYOD_DB_NAME);
 
@@ -126,14 +181,52 @@ while ( ! feof(STDIN))
 
             if ( ! isset($input[1]))
             {
-                // TODO: cache result
                 writeReply("OK user=$row[0]");
+                cacheResult($srcIP, $mac, "", $row[0], $ttl);
 
                 continue;
             }
             else
             {
-                // TODO: group membership checks
+                if ( ! isset($SQUID_LDAP_GROUP_DN[$input[1]]))
+                {
+                    writeReply(SQUID_FAILURE_CODE . " message=\"No matching group DN found for '$input[1]'.\"");
+
+                    continue;
+                }
+
+                if (($ad = ldap_connect(SQUID_LDAP_SERVER)) !== false && ldap_bind($ad, SQUID_LDAP_USER_DN, SQUID_LDAP_USER_PW))
+                {
+                    $query  = "(&(sAMAccountName=$row[0])(memberOf:1.2.840.113556.1.4.1941:=" . $SQUID_LDAP_GROUP_DN[$input[1]] . "))";
+                    $ls     = ldap_search($ad, SQUID_LDAP_BASE_DN, $query, array("sAMAccountName"), 0, 0, SQUID_CONNECT_TIMEOUT);
+
+                    if ($ls === false || ($r = ldap_get_entries($ad, $ls)) === false)
+                    {
+                        writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from LDAP server.\"");
+
+                        continue;
+                    }
+
+                    if (isset($r[0]["samaccountname"][0]))
+                    {
+                        writeReply("OK user=$row[0]");
+                        cacheResult($srcIP, $mac, $input[1], $row[0], $ttl);
+
+                        continue;
+                    }
+                    else
+                    {
+                        writeReply("ERR");
+
+                        continue;
+                    }
+                }
+                else
+                {
+                    writeReply(SQUID_FAILURE_CODE . " message=\"Unable to bind to LDAP server.\"");
+
+                    continue;
+                }
             }
         }
     }
@@ -209,6 +302,7 @@ while ( ! feof(STDIN))
         {
             $username = $r[0]["samaccountname"][0];
             writeReply("OK user=$username");
+            cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", $username, $ttl);
 
             continue;
         }
@@ -217,7 +311,7 @@ while ( ! feof(STDIN))
     writeReply("ERR");
 }
 
-writeLog("$count requests processed, average processing time " . ($time / $count) . "s");
+writeLog("$count requests processed, average processing time " . ($count ? $time / $count : 0) . "s");
 
 // PRETTY_NESTED_ARRAYS,0
 
