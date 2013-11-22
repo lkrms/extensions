@@ -326,7 +326,7 @@ while ( ! feof(STDIN))
     }
 
     writeReply("ERR");
-    cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", null, $ttl);
+    cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", null, 10);
 }
 
 writeLog("$count requests processed, average processing time " . ($count ? $time / $count : 0) . "s");
