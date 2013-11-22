@@ -54,6 +54,7 @@ function checkCache($ip, $mac, $group)
         if ($un !== false)
         {
             writeReply("OK user=$un");
+            writeLog("Retrieved from cache: $key => $un", true);
 
             return true;
         }
