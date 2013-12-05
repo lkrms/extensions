@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SCRIPTDIR=`dirname $0`
-SETTINGSFILE=$SCRIPTDIR/`hostname -s`.vm_settings
+SETTINGSFILE=$SCRIPTDIR/settings
 
 if [ ! -f "$SETTINGSFILE" ]; then
 
