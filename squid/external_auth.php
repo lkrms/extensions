@@ -280,7 +280,7 @@ while ( ! feof(STDIN))
         $adUserDN   = SQUID_LDAP_USER_DN;
         $adUserPW   = SQUID_LDAP_USER_PW;
         $adBaseDN   = SQUID_LDAP_BASE_DN;
-        $adGroupDN  = SQUID_LDAP_GROUP_DN;
+        $adGroupDN  = $SQUID_LDAP_GROUP_DN;
 
         // check for a matching GUID
         if (($result = pg_execute($pconn, "get_user_GUID", array($mac))) === false)
@@ -317,7 +317,7 @@ while ( ! feof(STDIN))
             $adUserDN   = SQUID_ALT_LDAP_USER_DN;
             $adUserPW   = SQUID_ALT_LDAP_USER_PW;
             $adBaseDN   = SQUID_ALT_LDAP_BASE_DN;
-            $adGroupDN  = SQUID_ALT_LDAP_GROUP_DN;
+            $adGroupDN  = $SQUID_ALT_LDAP_GROUP_DN;
         }
 
         if ($guid !== false)
