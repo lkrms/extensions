@@ -51,6 +51,16 @@ define("SQUID_PM_DB_NAME", "devicemgr_v2m0");    // device_management under OS X
 define("SQUID_PM_DB_USERNAME", "squid");
 define("SQUID_PM_DB_PASSWORD", "PASSWORD");
 
+// set to TRUE if you want to use a second Profile Manager instance (if no matching device records are found in the first)
+define("SQUID_ALT_PROFILE_MANAGER_ENABLED", false);
+
+// alternate Profile Manager database credentials (PostgreSQL)
+define("SQUID_ALT_PM_DB_SERVER", "OSX002");
+define("SQUID_ALT_PM_DB_PORT", "5432");
+define("SQUID_ALT_PM_DB_NAME", "devicemgr_v2m0");
+define("SQUID_ALT_PM_DB_USERNAME", "squid");
+define("SQUID_ALT_PM_DB_PASSWORD", "PASSWORD");
+
 // where to log stuff and things
 define("SQUID_LOG_FILE", "/var/log/squid3/external_acl.log");
 define("SQUID_LOG_VERBOSE", true);

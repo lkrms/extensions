@@ -73,7 +73,7 @@ function checkCache($ip, $mac, $group)
 
 function cleanUp()
 {
-    global $ad, $pconn, $mconn;
+    global $ad, $pconn, $pconn2, $mconn;
 
     if (isset($ad))
     {
@@ -85,6 +85,12 @@ function cleanUp()
     {
         pg_close($pconn);
         unset($GLOBALS["pconn"]);
+    }
+
+    if (isset($pconn2))
+    {
+        pg_close($pconn2);
+        unset($GLOBALS["pconn2"]);
     }
 
     if (isset($mconn))
@@ -99,6 +105,7 @@ $start  = microtime(true);
 $count  = 0;
 $time   = 0;
 $pmcs   = "host=" . SQUID_PM_DB_SERVER . " port=" . SQUID_PM_DB_PORT . " dbname=" . SQUID_PM_DB_NAME . " user=" . SQUID_PM_DB_USERNAME . " password='" . addslashes(SQUID_PM_DB_PASSWORD) . "' connect_timeout=" . SQUID_CONNECT_TIMEOUT;
+$pmcs2  = "host=" . SQUID_ALT_PM_DB_SERVER . " port=" . SQUID_ALT_PM_DB_PORT . " dbname=" . SQUID_ALT_PM_DB_NAME . " user=" . SQUID_ALT_PM_DB_USERNAME . " password='" . addslashes(SQUID_ALT_PM_DB_PASSWORD) . "' connect_timeout=" . SQUID_CONNECT_TIMEOUT;
 
 // to minimise login latency, we do our own caching
 $mc = new Memcached();
@@ -259,81 +266,107 @@ while ( ! feof(STDIN))
         }
     }
 
-    // connect to Profile Manager database
-    if (($pconn = pg_connect($pmcs)) === false || pg_prepare($pconn, "get_user_GUID", "SELECT users.guid FROM devices inner join users on devices.user_id = users.id WHERE lower(\"WiFiMAC\") = \$1") === false)
+    if (SQUID_PROFILE_MANAGER_ENABLED)
     {
-        writeReply(SQUID_FAILURE_CODE . " message=\"Unable to connect to Profile Manager database.\"");
-
-        continue;
-    }
-
-    // bind to LDAP server
-    if (($ad = ldap_connect(SQUID_LDAP_SERVER)) === false || ! ldap_bind($ad, SQUID_LDAP_USER_DN, SQUID_LDAP_USER_PW))
-    {
-        writeReply(SQUID_FAILURE_CODE . " message=\"Unable to bind to LDAP server.\"");
-
-        continue;
-    }
-
-    // check for a matching GUID
-    if (($result = pg_execute($pconn, "get_user_GUID", array($mac))) === false)
-    {
-        writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from Profile Manager database.\"");
-
-        continue;
-    }
-
-    if (($guid = pg_fetch_row($result)) !== false)
-    {
-        // we have our GUID - now to search for a match in LDAP (but first we'll need to re-format the GUID)
-        $guid     = str_replace("-", "", $guid[0]);
-        $guid     = str_split($guid, 2);
-        $bytes    = array();
-        $bytes[]  = $guid[3];
-        $bytes[]  = $guid[2];
-        $bytes[]  = $guid[1];
-        $bytes[]  = $guid[0];
-        $bytes[]  = $guid[5];
-        $bytes[]  = $guid[4];
-        $bytes[]  = $guid[7];
-        $bytes[]  = $guid[6];
-        $bytes    = array_merge($bytes, array_slice($guid, 8));
-        $guid     = "\\" . implode("\\", $bytes);
-        $query    = "(objectGUID=$guid)";
-
-        if (isset($input[1]))
+        // connect to Profile Manager database
+        if (($pconn = pg_connect($pmcs)) === false || pg_prepare($pconn, "get_user_GUID", "SELECT users.guid FROM devices inner join users on devices.user_id = users.id WHERE lower(\"WiFiMAC\") = \$1") === false)
         {
-            if (isset($SQUID_LDAP_GROUP_DN[$input[1]]))
+            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to connect to Profile Manager database.\"");
+
+            continue;
+        }
+
+        // bind to LDAP server
+        if (($ad = ldap_connect(SQUID_LDAP_SERVER)) === false || ! ldap_bind($ad, SQUID_LDAP_USER_DN, SQUID_LDAP_USER_PW))
+        {
+            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to bind to LDAP server.\"");
+
+            continue;
+        }
+
+        // check for a matching GUID
+        if (($result = pg_execute($pconn, "get_user_GUID", array($mac))) === false)
+        {
+            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from Profile Manager database.\"");
+
+            continue;
+        }
+
+        $guid = pg_fetch_row($result);
+
+        // if no matching GUID was found and an alternate Profile Manager database has been configured, try the same query on it
+        if ($guid === false && SQUID_ALT_PROFILE_MANAGER_ENABLED)
+        {
+            // connect to alternate Profile Manager database
+            if (($pconn2 = pg_connect($pmcs2)) === false || pg_prepare($pconn2, "get_user_GUID", "SELECT users.guid FROM devices inner join users on devices.user_id = users.id WHERE lower(\"WiFiMAC\") = \$1") === false)
             {
-                // this is a special memberOf query that checks membership recursively (may only work on Active Directory)
-                $query = "(&(objectGUID=$guid)(memberOf:1.2.840.113556.1.4.1941:=" . $SQUID_LDAP_GROUP_DN[$input[1]] . "))";
-            }
-            else
-            {
-                writeReply(SQUID_FAILURE_CODE . " message=\"No matching group DN found for '$input[1]'.\"");
-                cacheResult($srcIP, $mac, $input[1], null, SQUID_MAX_TTL);
+                writeReply(SQUID_FAILURE_CODE . " message=\"Unable to connect to alternate Profile Manager database.\"");
 
                 continue;
             }
+
+            if (($result = pg_execute($pconn2, "get_user_GUID", array($mac))) === false)
+            {
+                writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from alternate Profile Manager database.\"");
+
+                continue;
+            }
+
+            $guid = pg_fetch_row($result);
         }
 
-        $ls = ldap_search($ad, SQUID_LDAP_BASE_DN, $query, array("sAMAccountName"), 0, 0, SQUID_CONNECT_TIMEOUT);
-
-        if ($ls === false || ($r = ldap_get_entries($ad, $ls)) === false)
+        if ($guid !== false)
         {
-            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from LDAP server.\"");
+            // we have our GUID - now to search for a match in LDAP (but first we'll need to re-format the GUID)
+            $guid     = str_replace("-", "", $guid[0]);
+            $guid     = str_split($guid, 2);
+            $bytes    = array();
+            $bytes[]  = $guid[3];
+            $bytes[]  = $guid[2];
+            $bytes[]  = $guid[1];
+            $bytes[]  = $guid[0];
+            $bytes[]  = $guid[5];
+            $bytes[]  = $guid[4];
+            $bytes[]  = $guid[7];
+            $bytes[]  = $guid[6];
+            $bytes    = array_merge($bytes, array_slice($guid, 8));
+            $guid     = "\\" . implode("\\", $bytes);
+            $query    = "(objectGUID=$guid)";
 
-            continue;
-        }
+            if (isset($input[1]))
+            {
+                if (isset($SQUID_LDAP_GROUP_DN[$input[1]]))
+                {
+                    // this is a special memberOf query that checks membership recursively (may only work on Active Directory)
+                    $query = "(&(objectGUID=$guid)(memberOf:1.2.840.113556.1.4.1941:=" . $SQUID_LDAP_GROUP_DN[$input[1]] . "))";
+                }
+                else
+                {
+                    writeReply(SQUID_FAILURE_CODE . " message=\"No matching group DN found for '$input[1]'.\"");
+                    cacheResult($srcIP, $mac, $input[1], null, SQUID_MAX_TTL);
 
-        // finally, we have our username!
-        if (isset($r[0]["samaccountname"][0]))
-        {
-            $username = $r[0]["samaccountname"][0];
-            writeReply("OK user=$username");
-            cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", $username, $ttl);
+                    continue;
+                }
+            }
 
-            continue;
+            $ls = ldap_search($ad, SQUID_LDAP_BASE_DN, $query, array("sAMAccountName"), 0, 0, SQUID_CONNECT_TIMEOUT);
+
+            if ($ls === false || ($r = ldap_get_entries($ad, $ls)) === false)
+            {
+                writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from LDAP server.\"");
+
+                continue;
+            }
+
+            // finally, we have our username!
+            if (isset($r[0]["samaccountname"][0]))
+            {
+                $username = $r[0]["samaccountname"][0];
+                writeReply("OK user=$username");
+                cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", $username, $ttl);
+
+                continue;
+            }
         }
     }
 
