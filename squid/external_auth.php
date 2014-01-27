@@ -276,13 +276,11 @@ while ( ! feof(STDIN))
             continue;
         }
 
-        // bind to LDAP server
-        if (($ad = ldap_connect(SQUID_LDAP_SERVER)) === false || ! ldap_bind($ad, SQUID_LDAP_USER_DN, SQUID_LDAP_USER_PW))
-        {
-            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to bind to LDAP server.\"");
-
-            continue;
-        }
+        $adServer   = SQUID_LDAP_SERVER;
+        $adUserDN   = SQUID_LDAP_USER_DN;
+        $adUserPW   = SQUID_LDAP_USER_PW;
+        $adBaseDN   = SQUID_LDAP_BASE_DN;
+        $adGroupDN  = SQUID_LDAP_GROUP_DN;
 
         // check for a matching GUID
         if (($result = pg_execute($pconn, "get_user_GUID", array($mac))) === false)
@@ -313,10 +311,25 @@ while ( ! feof(STDIN))
             }
 
             $guid = pg_fetch_row($result);
+
+            // use alternate LDAP credentials
+            $adServer   = SQUID_ALT_LDAP_SERVER;
+            $adUserDN   = SQUID_ALT_LDAP_USER_DN;
+            $adUserPW   = SQUID_ALT_LDAP_USER_PW;
+            $adBaseDN   = SQUID_ALT_LDAP_BASE_DN;
+            $adGroupDN  = SQUID_ALT_LDAP_GROUP_DN;
         }
 
         if ($guid !== false)
         {
+            // bind to LDAP server
+            if (($ad = ldap_connect($adServer)) === false || ! ldap_bind($ad, $adUserDN, $adUserPW))
+            {
+                writeReply(SQUID_FAILURE_CODE . " message=\"Unable to bind to LDAP server.\"");
+
+                continue;
+            }
+
             // we have our GUID - now to search for a match in LDAP (but first we'll need to re-format the GUID)
             $guid     = str_replace("-", "", $guid[0]);
             $guid     = str_split($guid, 2);
@@ -335,10 +348,10 @@ while ( ! feof(STDIN))
 
             if (isset($input[1]))
             {
-                if (isset($SQUID_LDAP_GROUP_DN[$input[1]]))
+                if (isset($adGroupDN[$input[1]]))
                 {
                     // this is a special memberOf query that checks membership recursively (may only work on Active Directory)
-                    $query = "(&(objectGUID=$guid)(memberOf:1.2.840.113556.1.4.1941:=" . $SQUID_LDAP_GROUP_DN[$input[1]] . "))";
+                    $query = "(&(objectGUID=$guid)(memberOf:1.2.840.113556.1.4.1941:=" . $adGroupDN[$input[1]] . "))";
                 }
                 else
                 {
@@ -349,7 +362,7 @@ while ( ! feof(STDIN))
                 }
             }
 
-            $ls = ldap_search($ad, SQUID_LDAP_BASE_DN, $query, array("sAMAccountName"), 0, 0, SQUID_CONNECT_TIMEOUT);
+            $ls = ldap_search($ad, $adBaseDN, $query, array("sAMAccountName"), 0, 0, SQUID_CONNECT_TIMEOUT);
 
             if ($ls === false || ($r = ldap_get_entries($ad, $ls)) === false)
             {

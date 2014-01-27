@@ -61,6 +61,13 @@ define("SQUID_ALT_PM_DB_NAME", "devicemgr_v2m0");
 define("SQUID_ALT_PM_DB_USERNAME", "squid");
 define("SQUID_ALT_PM_DB_PASSWORD", "PASSWORD");
 
+// change these settings if you want alternate Profile Manager records checked against an alternate LDAP server
+define("SQUID_ALT_LDAP_SERVER", SQUID_LDAP_SERVER);
+define("SQUID_ALT_LDAP_USER_DN", SQUID_LDAP_USER_DN);
+define("SQUID_ALT_LDAP_USER_PW", SQUID_LDAP_USER_PW);
+define("SQUID_ALT_LDAP_BASE_DN", SQUID_LDAP_BASE_DN);
+$SQUID_ALT_LDAP_GROUP_DN = $SQUID_LDAP_GROUP_DN;
+
 // where to log stuff and things
 define("SQUID_LOG_FILE", "/var/log/squid3/external_acl.log");
 define("SQUID_LOG_VERBOSE", true);
