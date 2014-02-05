@@ -201,6 +201,17 @@ where attendprd.cmpy_code = '01'
     and subtab.rpt_flg = 'Y'
     and not subtab.dept_code in ('NO', 'CAS')
     and not subtab.sub_short in ('GC')
+    and studsub.stud_code in (
+        select student.stud_code
+        from student
+            inner join studeuddata on student.stud_code = studeuddata.stud_code and studeuddata.cmpy_code = '01' and studeuddata.area_code = 4
+        where student.cmpy_code = '01'
+            and year_grp >= $minYear
+            and doe <= GETDATE()
+            and (dol is null or dol >= GETDATE())
+            and eud21_text is not null
+            and e_mail is not null
+    )
 order by section_id, user_id",
             "select null as course_id,
     teacher.emp_code as user_id,
