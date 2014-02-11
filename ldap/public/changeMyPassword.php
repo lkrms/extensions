@@ -1,0 +1,149 @@
+<?php
+
+define("LDAP_ROOT", dirname(__file__) . "/..");
+require_once (LDAP_ROOT . "/common.php");
+
+// die silently if this isn't a secure request
+if (empty($_SERVER["HTTPS"]))
+{
+    exit;
+}
+
+$errors    = array();
+$feedback  = "";
+
+if ($_SERVER["REQUEST_METHOD"] == "POST")
+{
+    // before we do anything
+    if (LDAP_USERNAME_REGEX && ! preg_match(LDAP_USERNAME_REGEX, _get("username")))
+    {
+        $errors[] = "Invalid username.";
+    }
+
+    if (LDAP_PASSWORD_REGEX)
+    {
+        if ( ! preg_match(LDAP_PASSWORD_REGEX, _get("password")))
+        {
+            $errors[] = "Current password invalid.";
+        }
+
+        if ( ! preg_match(LDAP_PASSWORD_REGEX, _get("new_password")))
+        {
+            $errors[] = "New password invalid.";
+        }
+    }
+
+    if (_get("new_password") != _get("confirm_password"))
+    {
+        $errors[] = "New password fields don't match.";
+    }
+
+    if (_get("new_password") == LDAP_EXAMPLE_PASSWORD)
+    {
+        $errors[] = "You're not allowed to use the example password.";
+    }
+
+    if ( ! $errors)
+    {
+        $un   = _get("username");
+        $pw   = _get("password");
+        $npw  = _get("new_password");
+        $ad   = ldap_connect("ldaps://" . LDAP_SERVER);
+
+        if ($ad === false)
+        {
+            $errors[] = "Unable to establish secure connection with LDAP server.";
+        }
+        else
+        {
+            if (@ldap_bind($ad, $un . '@' . LDAP_DOMAIN, $pw))
+            {
+                // authentication succeeded; now to find the user's particulars
+                if ( ! $ls = ldap_search($ad, LDAP_BASE_DN, "(sAMAccountName=$un)", array("givenName", "sn")))
+                {
+                    ldap_unbind($ad);
+                    $errors[] = "Unable to request data from LDAP server.";
+                }
+                else
+                {
+                    $le = ldap_get_entries($ad, $ls);
+                    ldap_unbind($ad);
+
+                    if ( ! $le)
+                    {
+                        $errors[] = "Unable to retrieve data from LDAP server.";
+                    }
+                    else
+                    {
+                        $dn     = $le[0]["dn"];
+                        $first  = $le[0]["givenname"];
+                        $last   = $le[0]["sn"];
+
+                        // see http://www.openldap.org/faq/data/cache/347.html
+                        $npw_encoded  = "{SHA}" . base64_encode(sha1($npw, true));
+                        $attributes   = array("userPassword" => $npw_encoded);
+
+                        if ( ! @ldap_bind($ad, LDAP_ADMIN_USER_DN, LDAP_ADMIN_USER_PW))
+                        {
+                            $errors[] = "Unable to bind to LDAP server.";
+                        }
+                        else
+                        {
+                            if (ldap_mod_replace($ad, $dn, $attributes))
+                            {
+                                $feedback .= "<p style='color:#090'>Thanks, $first. Your password was changed successfully.</p>";
+                            }
+                            else
+                            {
+                                $errors[] = "Unable to change your password. Does your new password meet the criteria listed below?";
+                            }
+
+                            ldap_unbind($ad);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                $errors[] = "Invalid username and/or current password.";
+            }
+        }
+    }
+
+    if ($errors)
+    {
+        $feedback .= "<p style='color:#f00'>" . implode("<br />", $errors) . "<br />Please press the back button on your browser and try again.</p>";
+    }
+}
+
+?>
+<html>
+<head>
+    <title>Change My Password</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+</head>
+<body>
+    <?php print $feedback; ?>
+    <h3>Change My Password</h3>
+    <p>All fields are required.</p>
+    <p>Your new password must meet the following criteria:</p>
+    <ul>
+        <li>Must contain 6 or more characters. <em>Longer passwords are better.</em></li>
+        <li>Must contain at least 3 different character types, e.g. a lowercase letter, an uppercase letter and a number.</li>
+        <li>Cannot contain any part of your name or username.</li>
+    </ul>
+    <p>Here's an example password that exceeds this criteria: <strong><?php print LDAP_EXAMPLE_PASSWORD; ?></strong> <em>(Don't use this one, though!)</em></p>
+    <?php print "<form method=\"post\" action=\"$_SERVER[REQUEST_URI]\">"; ?>
+    <p>Username: <input type="text" name="username" size="30"></p>
+    <p>Current password: <input type="password" name="password" size="30"></p>
+    <p>New password: <input type="password" name="new_password" size="30"></p>
+    <p>New password again: <input type="password" name="confirm_password" size="30"></p>
+    <p><input type="submit" name="submit" value="Change password" /></p>
+    <?php print "</form>"; ?>
+</body>
+</html>
+<?php
+
+// PRETTY_NESTED_ARRAYS,0
+
+?>
