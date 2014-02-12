@@ -85,8 +85,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
                     {
                         @ldap_unbind($ad);
                         $dn     = $le[0]["dn"];
-                        $first  = $le[0]["givenname"];
-                        $last   = $le[0]["sn"];
+                        $first  = $le[0]["givenname"][0];
+                        $last   = $le[0]["sn"][0];
 
                         // Active Directory is more likely to support unicodePwd than than userPassword
                         $npw_encoded  = mb_convert_encoding('"' . $npw . '"', "UTF-16LE");
