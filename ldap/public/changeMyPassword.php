@@ -89,7 +89,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
                         $last   = $le[0]["sn"];
 
                         // Active Directory is more likely to support unicodePwd than than userPassword
-                        $npw_encoded  = utf8_encode($npw);
+                        $npw_encoded  = mb_convert_encoding('"' . $npw . '"', "UTF-16LE");
                         $attributes   = array("unicodePwd" => $npw_encoded);
 
                         if ( ! ($ad = @ldap_connect("ldaps://" . LDAP_SERVER)) || ! @ldap_bind($ad, LDAP_ADMIN_USER_DN, LDAP_ADMIN_USER_PW))
@@ -106,7 +106,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
                             }
                             else
                             {
-                                $errors[]    = "Unable to change your password. Does your new password meet the criteria listed below?";
+                                $errors[]    = "Unable to change your password, $first. Does your new password meet the criteria listed below?";
                                 $ldap_error  = ldap_error($ad);
                                 $ldap_errno  = ldap_errno($ad);
                             }
