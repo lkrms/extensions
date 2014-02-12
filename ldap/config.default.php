@@ -8,6 +8,9 @@ define("LDAP_BASE_DN", "OU=Users,DC=mydomain,DC=local");
 define("LDAP_ADMIN_USER_DN", "CN=Account Operator,OU=Users,DC=mydomain,DC=local");
 define("LDAP_ADMIN_USER_PW", "PASSWORD");
 
+// enable during testing, disable otherwise
+define("LDAP_SHOW_ERROR_DETAILS", false);
+
 // regular expressions for username/password validation (prior to LDAP binding) - ignored if empty
 define("LDAP_USERNAME_REGEX", '/^[a-z]+[\\.a-z]+$/i');
 define("LDAP_PASSWORD_REGEX", '/^.{6,}$/');

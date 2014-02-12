@@ -9,8 +9,10 @@ if (empty($_SERVER["HTTPS"]))
     exit;
 }
 
-$errors    = array();
-$feedback  = "";
+$errors      = array();
+$feedback    = "";
+$ldap_error  = "";
+$ldap_errno  = null;
 
 if ($_SERVER["REQUEST_METHOD"] == "POST")
 {
@@ -48,33 +50,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
         $un   = _get("username");
         $pw   = _get("password");
         $npw  = _get("new_password");
-        $ad   = ldap_connect("ldaps://" . LDAP_SERVER);
+        $ad   = @ldap_connect("ldaps://" . LDAP_SERVER);
 
         if ($ad === false)
         {
-            $errors[] = "Unable to establish secure connection with LDAP server.";
+            $errors[]    = "Unable to establish secure connection with LDAP server.";
+            $ldap_error  = ldap_error($ad);
+            $ldap_errno  = ldap_errno($ad);
         }
         else
         {
             if (@ldap_bind($ad, $un . '@' . LDAP_DOMAIN, $pw))
             {
                 // authentication succeeded; now to find the user's particulars
-                if ( ! $ls = ldap_search($ad, LDAP_BASE_DN, "(sAMAccountName=$un)", array("givenName", "sn")))
+                if ( ! $ls = @ldap_search($ad, LDAP_BASE_DN, "(sAMAccountName=$un)", array("givenName", "sn")))
                 {
-                    ldap_unbind($ad);
-                    $errors[] = "Unable to request data from LDAP server.";
+                    $errors[]    = "Unable to request data from LDAP server.";
+                    $ldap_error  = ldap_error($ad);
+                    $ldap_errno  = ldap_errno($ad);
+                    @ldap_unbind($ad);
                 }
                 else
                 {
-                    $le = ldap_get_entries($ad, $ls);
-                    ldap_unbind($ad);
+                    $le = @ldap_get_entries($ad, $ls);
 
                     if ( ! $le)
                     {
-                        $errors[] = "Unable to retrieve data from LDAP server.";
+                        $errors[]    = "Unable to retrieve data from LDAP server.";
+                        $ldap_error  = ldap_error($ad);
+                        $ldap_errno  = ldap_errno($ad);
+                        @ldap_unbind($ad);
                     }
                     else
                     {
+                        @ldap_unbind($ad);
                         $dn     = $le[0]["dn"];
                         $first  = $le[0]["givenname"];
                         $last   = $le[0]["sn"];
@@ -85,27 +94,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
 
                         if ( ! @ldap_bind($ad, LDAP_ADMIN_USER_DN, LDAP_ADMIN_USER_PW))
                         {
-                            $errors[] = "Unable to bind to LDAP server.";
+                            $errors[]    = "Unable to bind to LDAP server.";
+                            $ldap_error  = ldap_error($ad);
+                            $ldap_errno  = ldap_errno($ad);
                         }
                         else
                         {
-                            if (ldap_mod_replace($ad, $dn, $attributes))
+                            if (@ldap_mod_replace($ad, $dn, $attributes))
                             {
                                 $feedback .= "<p style='color:#090'>Thanks, $first. Your password was changed successfully.</p>";
                             }
                             else
                             {
-                                $errors[] = "Unable to change your password. Does your new password meet the criteria listed below?";
+                                $errors[]    = "Unable to change your password. Does your new password meet the criteria listed below?";
+                                $ldap_error  = ldap_error($ad);
+                                $ldap_errno  = ldap_errno($ad);
                             }
 
-                            ldap_unbind($ad);
+                            @ldap_unbind($ad);
                         }
                     }
                 }
             }
             else
             {
-                $errors[] = "Invalid username and/or current password.";
+                $errors[]    = "Invalid username and/or current password.";
+                $ldap_error  = ldap_error($ad);
+                $ldap_errno  = ldap_errno($ad);
             }
         }
     }
@@ -113,6 +128,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
     if ($errors)
     {
         $feedback .= "<p style='color:#f00'>" . implode("<br />", $errors) . "<br />Please press the back button on your browser and try again.</p>";
+
+        if (LDAP_SHOW_ERROR_DETAILS && ! is_null($ldap_errno))
+        {
+            $feedback .= "<p style='color:#f00'><small>{$ldap_errno}: {$ldap_error}</small></p>";
+        }
     }
 }
 
