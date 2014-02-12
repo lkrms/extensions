@@ -92,7 +92,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
                         $npw_encoded  = "{SHA}" . base64_encode(sha1($npw, true));
                         $attributes   = array("userPassword" => $npw_encoded);
 
-                        if ( ! @ldap_bind($ad, LDAP_ADMIN_USER_DN, LDAP_ADMIN_USER_PW))
+                        if ( ! ($ad = @ldap_connect("ldaps://" . LDAP_SERVER)) || ! @ldap_bind($ad, LDAP_ADMIN_USER_DN, LDAP_ADMIN_USER_PW))
                         {
                             $errors[]    = "Unable to bind to LDAP server.";
                             $ldap_error  = ldap_error($ad);
