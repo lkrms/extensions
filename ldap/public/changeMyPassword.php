@@ -13,11 +13,12 @@ $errors      = array();
 $feedback    = "";
 $ldap_error  = "";
 $ldap_errno  = null;
+$un          = _get("username");
 
 if ($_SERVER["REQUEST_METHOD"] == "POST")
 {
     // before we do anything
-    if (LDAP_USERNAME_REGEX && ! preg_match(LDAP_USERNAME_REGEX, _get("username")))
+    if (LDAP_USERNAME_REGEX && ! preg_match(LDAP_USERNAME_REGEX, $un))
     {
         $errors[] = "Invalid username.";
     }
@@ -47,7 +48,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
 
     if ( ! $errors)
     {
-        $un   = _get("username");
         $pw   = _get("password");
         $npw  = _get("new_password");
         $ad   = @ldap_connect("ldaps://" . LDAP_SERVER);
@@ -103,6 +103,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
                             if (@ldap_mod_replace($ad, $dn, $attributes))
                             {
                                 $feedback .= "<p style='color:#090'>Thanks, $first. Your password was changed successfully.</p>";
+                                $un        = "";
                             }
                             else
                             {
@@ -154,7 +155,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
     </ul>
     <p>Here's an example password that exceeds this criteria: <strong><?php print LDAP_EXAMPLE_PASSWORD; ?></strong> <em>(Don't use this one, though!)</em></p>
     <?php print "<form method=\"post\" action=\"$_SERVER[REQUEST_URI]\">"; ?>
-    <p>Username: <input type="text" name="username" size="30" placeholder="e.g. johnny.smith" value="<?php print htmlspecialchars(_get("username")); ?>"></p>
+    <p>Username: <input type="text" name="username" size="30" placeholder="e.g. johnny.smith" value="<?php print htmlspecialchars($un); ?>"></p>
     <p>Current password: <input type="password" name="password" size="30"></p>
     <p>New password: <input type="password" name="new_password" size="30"></p>
     <p>New password again: <input type="password" name="confirm_password" size="30"></p>
