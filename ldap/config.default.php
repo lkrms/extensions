@@ -15,6 +15,9 @@ define("LDAP_SHOW_ERROR_DETAILS", false);
 define("LDAP_USERNAME_REGEX", '/^[a-z]+[\\.a-z]+$/i');
 define("LDAP_PASSWORD_REGEX", '/^.{6,}$/');
 
+// used when creating passwords
+define("LDAP_PASSWORD_LENGTH", "6");
+
 // displayed to users as a "good password" (but not permitted for use)
 define("LDAP_EXAMPLE_PASSWORD", "radishChicago8");
 
