@@ -88,9 +88,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
                         $first  = $le[0]["givenname"];
                         $last   = $le[0]["sn"];
 
-                        // see http://www.openldap.org/faq/data/cache/347.html
-                        $npw_encoded  = "{SHA}" . base64_encode(sha1($npw, true));
-                        $attributes   = array("userPassword" => $npw_encoded);
+                        // Active Directory is more likely to support unicodePwd than than userPassword
+                        $npw_encoded  = utf8_encode($npw);
+                        $attributes   = array("unicodePwd" => $npw_encoded);
 
                         if ( ! ($ad = @ldap_connect("ldaps://" . LDAP_SERVER)) || ! @ldap_bind($ad, LDAP_ADMIN_USER_DN, LDAP_ADMIN_USER_PW))
                         {
