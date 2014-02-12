@@ -155,10 +155,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
     </ul>
     <p>Here's an example password that exceeds this criteria: <strong><?php print LDAP_EXAMPLE_PASSWORD; ?></strong> <em>(Don't use this one, though!)</em></p>
     <?php print "<form method=\"post\" action=\"$_SERVER[REQUEST_URI]\">"; ?>
-    <p>Username: <input type="text" name="username" size="30" placeholder="e.g. johnny.smith" value="<?php print htmlspecialchars($un); ?>"></p>
-    <p>Current password: <input type="password" name="password" size="30"></p>
-    <p>New password: <input type="password" name="new_password" size="30"></p>
-    <p>New password again: <input type="password" name="confirm_password" size="30"></p>
+    <p>Username:<br />
+        <input type="text" name="username" size="30" placeholder="e.g. johnny.smith" value="<?php print htmlspecialchars($un); ?>"></p>
+    <p>Current password:<br />
+        <input type="password" name="password" size="30"></p>
+    <p>New password:<br />
+        <input type="password" name="new_password" size="30"></p>
+    <p>New password again:<br />
+        <input type="password" name="confirm_password" size="30"></p>
     <p><input type="submit" name="submit" value="Change password" /></p>
     <?php print "</form>"; ?>
 </body>
