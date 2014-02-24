@@ -249,6 +249,14 @@ if ( ! $db || ! mssql_select_db(TASS_DB_NAME))
     exit ("Unable to connect to TASS database.");
 }
 
+$zip = new ZipArchive;
+$zipFile = TASS_ROOT . "/.tmp/canvas-" . time() . ".zip";
+
+if ($zip->open($zipFile, ZipArchive::CREATE) !== true)
+{
+    exit ("Unable to create ZIP file.");
+}
+
 foreach ($csv as $csvName => $csvMeta)
 {
     $lines = array();
@@ -291,9 +299,10 @@ foreach ($csv as $csvName => $csvMeta)
         }
     }
 
-    file_put_contents(TASS_ROOT . "/.tmp/$csvName.csv", implode("\r\n", $lines) . "\r\n");
+    $zip->addFromString("$csvName.csv", implode("\r\n", $lines) . "\r\n");
 }
 
+$zip->close();
 mssql_close($db);
 
 // PRETTY_ALIGN,0
