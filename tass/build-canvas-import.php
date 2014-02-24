@@ -154,7 +154,7 @@ order by short_name, course_id"
             5
         ),
         "sql" => array(
-            "select distinct attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code + 'L' + tchsub.class as section_id,
+            "select distinct attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + rtrim(tchsub.sub_code) + 'L' + tchsub.class as section_id,
     attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code as course_id,
     rtrim(subtab.sub_long) + ' ' + tchsub.class as name,
     'active' as status,
@@ -187,7 +187,7 @@ order by name, section_id"
             "select distinct null as course_id,
     studsub.stud_code as user_id,
     'student' as role,
-    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code + 'L' + tchsub.class as section_id,
+    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + rtrim(tchsub.sub_code) + 'L' + tchsub.class as section_id,
     'active' as status,
     null as associated_user_id
 from attendprd
@@ -201,11 +201,22 @@ where attendprd.cmpy_code = '01'
     and subtab.rpt_flg = 'Y'
     and not subtab.dept_code in ('NO', 'CAS')
     and not subtab.sub_short in ('GC')
+    and studsub.stud_code in (
+        select student.stud_code
+        from student
+            inner join studeuddata on student.stud_code = studeuddata.stud_code and studeuddata.cmpy_code = '01' and studeuddata.area_code = 4
+        where student.cmpy_code = '01'
+            and year_grp >= $minYear
+            and doe <= GETDATE()
+            and (dol is null or dol >= GETDATE())
+            and eud21_text is not null
+            and e_mail is not null
+    )
 order by section_id, user_id",
             "select null as course_id,
     teacher.emp_code as user_id,
     'teacher' as role,
-    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code + 'L' + tchsub.class as section_id,
+    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + rtrim(tchsub.sub_code) + 'L' + tchsub.class as section_id,
     'active' as status,
     null as associated_user_id
 from attendprd
