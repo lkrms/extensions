@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 
 define("TASS_ROOT", dirname(__file__));
@@ -260,8 +261,9 @@ if ( ! $db || ! mssql_select_db(TASS_DB_NAME))
     exit ("Unable to connect to TASS database.");
 }
 
+$ref = time();
 $zip = new ZipArchive;
-$zipFile = TASS_ROOT . "/.tmp/canvas-" . time() . ".zip";
+$zipFile = TASS_ROOT . "/.tmp/canvas-" . $ref . ".zip";
 
 if ($zip->open($zipFile, ZipArchive::CREATE) !== true)
 {
@@ -325,8 +327,41 @@ curl_setopt($curl, CURLOPT_POST, true);
 curl_setopt($curl, CURLOPT_POSTFIELDS, array(
     "attachment" => "@$zipFile"
 ));
-curl_exec($curl);
-curl_close($curl);
+curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+$resultJson = curl_exec($curl);
+
+// provide a result notification by email
+$to = NOTIFY_EMAIL;
+$subject = "Canvas SIS import [ref: $ref]";
+$message = "";
+
+if ($resultJson === false)
+{
+    $to = ERROR_EMAIL;
+    $subject = "FAILURE: $subject";
+    $message = "Error uploading CSV archive to " . CANVAS_URL . ": " . curl_error($curl);
+    curl_close($curl);
+}
+else
+{
+    curl_close($curl);
+    $result = json_decode($resultJson, true);
+
+    if (is_null($result) || ! isset($result["id"]))
+    {
+        $to = ERROR_EMAIL;
+        $subject = "FAILURE: $subject";
+        $message = "Invalid response from " . CANVAS_URL . ": " . $resultJson;
+    }
+    else
+    {
+        $importID = $result["id"];
+        $subject = "Success: $subject";
+        $message = "Import started with ID $importID.";
+    }
+}
+
+mail($to, $subject, $message, "From: " . NOTIFY_EMAIL_FROM);
 
 // PRETTY_ALIGN,0
 

@@ -1,5 +1,10 @@
 <?php
 
+// where to send result notifications
+define("NOTIFY_EMAIL", "root@localhost");
+define("ERROR_EMAIL", NOTIFY_EMAIL);
+define("NOTIFY_EMAIL_FROM", "tass@localhost");
+
 // TASS database credentials
 define("TASS_DB_SERVER", "TASS01");
 define("TASS_DB_USERNAME", "read_only_user");
