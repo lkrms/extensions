@@ -1,0 +1,4 @@
+# Here's an example crontab you can adapt for /etc/cron.d on your system.
+
+45 7 * * * ictmanager /opt/extensions/tass/canvas-sis-import.php > /dev/null
+
