@@ -316,6 +316,18 @@ foreach ($csv as $csvName => $csvMeta)
 $zip->close();
 mssql_close($db);
 
+// attempt to upload our ZIP file to Canvas
+$curl = curl_init(CANVAS_URL . "/api/v1/accounts/" . CANVAS_ACCOUNT_ID . "/sis_imports.json?import_type=instructure_csv");
+curl_setopt($curl, CURLOPT_HTTPHEADER, array(
+    "Authorization: Bearer " . CANVAS_TOKEN
+));
+curl_setopt($curl, CURLOPT_POST, true);
+curl_setopt($curl, CURLOPT_POSTFIELDS, array(
+    "attachment" => "@$zipFile"
+));
+curl_exec($curl);
+curl_close($curl);
+
 // PRETTY_ALIGN,0
 
 ?>
