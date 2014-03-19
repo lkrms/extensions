@@ -3,6 +3,7 @@
 
 define("SQUID_ROOT", dirname(__file__));
 require_once (SQUID_ROOT . "/common.php");
+error_reporting(0);
 
 function writeLog($message, $verbose = false)
 {
