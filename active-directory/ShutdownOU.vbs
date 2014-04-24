@@ -1,5 +1,5 @@
 ' ShutdownOU.vbs
-' Queries the given Active Directory OU for computer records, and uses PsShutdown to [ruthlessly] power them all down.
+' Queries the given Active Directory OU for computer records, and uses shutdown.exe to [ruthlessly] power them all down.
 
 Option Explicit
 
@@ -42,8 +42,7 @@ For Each computer In ou
 
                 WScript.StdOut.Write "online..."
 
-                'not possible since Vista: -m "To save energy, this computer will now power down (unless you cancel within 60 seconds)." -t 60
-                If wsh.Run("psshutdown -f -k -t 0 \\" & fqdn, 7, True) = 0 Then
+                If wsh.Run("shutdown /s /t 120 /c ""To save energy, this computer will power down in 2 minutes."" /m \\" & fqdn, 7, True) = 0 Then
 
                     WScript.StdOut.Write "powering down..."
 
