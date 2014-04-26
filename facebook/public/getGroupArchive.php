@@ -202,7 +202,7 @@ if (isset($_POST["gid"]))
 
                 // and comments on tagged photos
                 $comments = $fb->api( array(
-    "query"  => "select id, object_id, parent_id, fromid, time, text, attachment from comment where object_id in (select object_id from photo_tag where subject = $gid and created >= $start and created < $stop limit 20000) limit 20000",
+    "query"  => "select id, object_id, parent_id, fromid, time, text, attachment from comment where post_id in (select post_id from stream where source_id = $gid and attachment.fb_object_type = 'photo' and attachment.fb_object_id in (select pid from photo_tag where subject = $gid and created >= $start and created < $stop limit 20000) limit 20000) limit 20000",
     "method" => "fql.query"
 ));
 
