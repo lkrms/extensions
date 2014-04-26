@@ -28,13 +28,6 @@ function dbDateTime($timestamp)
 
 function downloadPhotos($gid)
 {
-    if ( ! is_writable(FACEBOOK_GROUP_ARCHIVE_ROOT))
-    {
-        error_log("Unable to write to download directory: " . FACEBOOK_GROUP_ARCHIVE_ROOT);
-
-        return;
-    }
-
     if ( ! file_exists(FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $gid))
     {
         if ( ! mkdir(FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $gid, 0777, true))
@@ -55,7 +48,7 @@ function downloadPhotos($gid)
 
         while ($row = mysqli_fetch_row($rows))
         {
-            if ( ! file_exists(FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $row["4"]) && copy($row["3"], FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $row["4"]))
+            if (file_exists(FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $row["4"]) || copy($row["3"], FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $row["4"]))
             {
                 $_download_path  = $row["4"];
                 $_photo_id       = $row["0"];
