@@ -52,8 +52,9 @@ if (isset($_POST["gid"]))
         $dbPhotoSrc  = mysqli_prepare($db, "update photos set src_big = ?, src_big_ext = ? where photo_id = ?");
         $dbPhotoTag  = mysqli_prepare($db, "replace into photo_tags (gid, photo_id, created_time, updated_time) values (?, ?, ?, ?)");
         $dbUser      = mysqli_prepare($db, "replace into users (user_id, first_name, last_name, name) values (?, ?, ?, ?)");
+        $dbInterval  = mysqli_prepare($db, "insert into intervals (gid, interval_start, interval_stop, fetch_start, fetch_stop, posts, comments, photos, photo_tags) values (?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-        if ( ! $dbPost || ! $dbComment || ! $dbPhoto || ! $dbPhotoSrc || ! $dbPhotoTag || ! $dbUser)
+        if ( ! $dbPost || ! $dbComment || ! $dbPhoto || ! $dbPhotoSrc || ! $dbPhotoTag || ! $dbUser || ! $dbInterval)
         {
             endOutput('<p class="error">Unable to prepare database statements.</p>');
         }
@@ -64,6 +65,7 @@ if (isset($_POST["gid"]))
         $bindResult  = mysqli_stmt_bind_param($dbPhotoSrc, "sss", $_src_big, $_src_big_ext, $_photo_id) && $bindResult;
         $bindResult  = mysqli_stmt_bind_param($dbPhotoTag, "isss", $_gid, $_photo_id, $_created_time, $_updated_time) && $bindResult;
         $bindResult  = mysqli_stmt_bind_param($dbUser, "isss", $_user_id, $_first_name, $_last_name, $_name) && $bindResult;
+        $bindResult  = mysqli_stmt_bind_param($dbInterval, "issssiiii", $_gid, $_interval_start, $_interval_stop, $_fetch_start, $_fetch_stop, $_posts, $_comments, $_photos, $_photo_tags) && $bindResult;
 
         if ( ! $bindResult)
         {
@@ -82,6 +84,13 @@ if (isset($_POST["gid"]))
             $post_pids  = array();
             $pids       = array();
             $uids       = array();
+
+            // only for auditing purposes
+            $postCount      = 0;
+            $commentCount   = 0;
+            $photoCount     = 0;
+            $photoTagCount  = 0;
+            $fetchStart     = time();
 
             try
             {
@@ -105,6 +114,7 @@ if (isset($_POST["gid"]))
                     $_permalink     = $post["permalink"];
                     mysqli_stmt_execute($dbPost);
                     $uids[] = $_user_id;
+                    $postCount++;
 
                     // and trawl for attached photos
                     if (isset($post["attachment"]["media"]))
@@ -127,6 +137,7 @@ if (isset($_POST["gid"]))
                                     $post_pids[]  = $_photo_id;
                                     $pids[]       = $_photo_id;
                                     $uids[]       = $_owner_id;
+                                    $photoCount++;
 
                                     break;
                             }
@@ -151,6 +162,7 @@ if (isset($_POST["gid"]))
                     $_message        = $comment["text"] ? $comment["text"] : null;
                     mysqli_stmt_execute($dbComment);
                     $uids[] = $_user_id;
+                    $commentCount++;
 
                     // comment attachments are handled a bit differently
                     if (isset($comment["attachment"]["media"]))
@@ -170,6 +182,7 @@ if (isset($_POST["gid"]))
                                 $_permalink      = $comment["attachment"]["url"];
                                 mysqli_stmt_execute($dbPhoto);
                                 $pids[] = $_photo_id;
+                                $photoCount++;
 
                                 break;
                         }
@@ -177,8 +190,15 @@ if (isset($_POST["gid"]))
                 }
 
                 // next, tagged photos
+                $extra = "";
+
+                if ($post_pids)
+                {
+                    $extra = " and not object_id in ('" . implode("', '", $post_pids) . "')";
+                }
+
                 $photoTags = $fb->api( array(
-    "query"  => "select object_id, images, aid, owner, src, caption, link, created, modified from photo where object_id in (select object_id from photo_tag where subject = $gid and created >= $start and created < $stop limit 20000) limit 20000",
+    "query"  => "select object_id, images, aid, owner, src, caption, link, created, modified from photo where object_id in (select object_id from photo_tag where subject = $gid and created >= $start and created < $stop limit 20000)$extra limit 20000",
     "method" => "fql.query"
 ));
                 $_attached_type = "photo_tag";
@@ -200,6 +220,8 @@ if (isset($_POST["gid"]))
                     $_permalink    = $photoTag["link"];
                     mysqli_stmt_execute($dbPhoto);
                     $uids[] = $_owner_id;
+                    $photoTagCount++;
+                    $photoCount++;
                 }
 
                 // and comments on tagged photos
@@ -219,6 +241,7 @@ if (isset($_POST["gid"]))
                     $_message        = $comment["text"] ? $comment["text"] : null;
                     mysqli_stmt_execute($dbComment);
                     $uids[] = $_user_id;
+                    $commentCount++;
 
                     if (isset($comment["attachment"]["media"]))
                     {
@@ -237,6 +260,7 @@ if (isset($_POST["gid"]))
                                 $_permalink      = $comment["attachment"]["url"];
                                 mysqli_stmt_execute($dbPhoto);
                                 $pids[] = $_photo_id;
+                                $photoCount++;
 
                                 break;
                         }
@@ -284,6 +308,17 @@ if (isset($_POST["gid"]))
                 throw $e;
             }
 
+            $_interval_start  = dbDateTime($start);
+            $_interval_stop   = dbDateTime($stop);
+            $_fetch_start     = dbDateTime($fetchStart);
+            $_fetch_stop      = dbDateTime(time());
+            $_posts           = $postCount ? $postCount : null;
+            $_comments        = $commentCount ? $commentCount : null;
+            $_photos          = $photoCount ? $photoCount : null;
+            $_photo_tags      = $photoTagCount ? $photoTagCount : null;
+            mysqli_stmt_execute($dbInterval);
+
+            // move to the next interval
             $start -= FACEBOOK_ARCHIVE_INTERVAL;
             $stop  -= FACEBOOK_ARCHIVE_INTERVAL;
             $i++;
