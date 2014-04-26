@@ -79,8 +79,9 @@ if (isset($_POST["gid"]))
 
         do
         {
-            $pids  = array();
-            $uids  = array();
+            $post_pids  = array();
+            $pids       = array();
+            $uids       = array();
 
             try
             {
@@ -123,8 +124,9 @@ if (isset($_POST["gid"]))
                                     $_caption      = $media["alt"];
                                     $_permalink    = $media["href"];
                                     mysqli_stmt_execute($dbPhoto);
-                                    $pids[]  = $_photo_id;
-                                    $uids[]  = $_owner_id;
+                                    $post_pids[]  = $_photo_id;
+                                    $pids[]       = $_photo_id;
+                                    $uids[]       = $_owner_id;
 
                                     break;
                             }
@@ -132,7 +134,7 @@ if (isset($_POST["gid"]))
                     }
                 }
 
-                // next, we do the same with comments
+                // next, we do the same with comments on those posts
                 $comments = $fb->api( array(
     "query"  => "select id, post_id, parent_id, fromid, time, text, attachment from comment where post_id in (select post_id from stream where source_id = $gid and created_time >= $start and created_time < $stop limit 20000) limit 20000",
     "method" => "fql.query"

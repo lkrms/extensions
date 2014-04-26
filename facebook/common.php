@@ -53,7 +53,9 @@ function downloadPhotos($gid)
 
         while ($row = mysqli_fetch_row($rows))
         {
-            if (file_exists(FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $row["4"]) || copy($row["3"], FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $row["4"]))
+            $filePath = FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $row["4"];
+
+            if ((file_exists($filePath) && touch($filePath)) || copy($row["3"], $filePath))
             {
                 $_download_path  = $row["4"];
                 $_photo_id       = $row["0"];
