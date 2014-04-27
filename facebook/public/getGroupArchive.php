@@ -77,7 +77,7 @@ if (isset($_POST["gid"]))
         $_job_id = mysqli_insert_id($db);
 
         // we'll be working backwards from 60 seconds ago
-        $stop   = time() - 60;
+        $stop   = 1388534400 + (floor((time() - 1388534400) / FACEBOOK_ARCHIVE_INTERVAL) + 1) * FACEBOOK_ARCHIVE_INTERVAL;
         $start  = $stop - FACEBOOK_ARCHIVE_INTERVAL;
         $i      = 0;
 
@@ -97,7 +97,7 @@ if (isset($_POST["gid"]))
             {
                 // first, we fetch all posts made during this archive interval
                 $posts = $fb->api( array(
-    "query"  => "select post_id, actor_id, created_time, updated_time, message, permalink, attachment from stream where source_id = $gid and created_time >= $start and created_time < $stop limit 20000",
+    "query"  => "select post_id, actor_id, created_time, updated_time, message, permalink, attachment from stream where source_id = $gid and created_time >= $start and created_time < $stop limit 100000",
     "method" => "fql.query"
 ));
                 $_attached_type  = "post";
@@ -150,7 +150,7 @@ if (isset($_POST["gid"]))
 
                 // next, we do the same with comments on those posts
                 $comments = $fb->api( array(
-    "query"  => "select id, post_id, parent_id, fromid, time, text, attachment from comment where post_id in (select post_id from stream where source_id = $gid and created_time >= $start and created_time < $stop limit 20000) limit 20000",
+    "query"  => "select id, post_id, parent_id, fromid, time, text, attachment from comment where post_id in (select post_id from stream where source_id = $gid and created_time >= $start and created_time < $stop limit 100000) limit 100000",
     "method" => "fql.query"
 ));
 
@@ -251,7 +251,7 @@ if (isset($_POST["gid"]))
             $stop  -= FACEBOOK_ARCHIVE_INTERVAL;
             $i++;
         }
-        while (count($posts) > 0 && (FACEBOOK_ARCHIVE_MAX_INTERVALS == 0 || $i < FACEBOOK_ARCHIVE_MAX_INTERVALS));
+        while ((count($posts) || $i == 1) && (FACEBOOK_ARCHIVE_MAX_INTERVALS == 0 || $i < FACEBOOK_ARCHIVE_MAX_INTERVALS));
     }
 }
 
