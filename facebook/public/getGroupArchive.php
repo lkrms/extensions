@@ -46,11 +46,11 @@ if (isset($_POST["gid"]))
             endOutput('<p class="error">Unable to connect to the database. Please check the connection settings and try again.</p>');
         }
 
-        $dbPost      = mysqli_prepare($db, "replace into posts (gid, post_id, user_id, created_time, updated_time, message, permalink) values (?, ?, ?, ?, ?, ?, ?)");
-        $dbComment   = mysqli_prepare($db, "replace into comments (gid, comment_id, attached_to, attached_type, parent_id, user_id, created_time, message) values (?, ?, ?, ?, ?, ?, ?, ?)");
-        $dbPhoto     = mysqli_prepare($db, "insert into photos (gid, photo_id, attached_to, attached_type, album_id, owner_id, src, src_ext, src_big, src_big_ext, caption, permalink) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) on duplicate key update caption = values(caption)");
-        $dbPhotoSrc  = mysqli_prepare($db, "update photos set src_big = ?, src_big_ext = ? where photo_id = ?");
-        $dbUser      = mysqli_prepare($db, "replace into users (user_id, first_name, last_name, name) values (?, ?, ?, ?)");
+        $dbPost      = mysqli_prepare($db, "insert into posts (gid, post_id, user_id, created_time, updated_time, message, permalink, last_fetched) values (?, ?, ?, ?, ?, ?, ?, now()) on duplicate key update last_fetched = now(), fetch_count = fetch_count + 1, updated_time = values(updated_time), message = values(message), permalink = values(permalink)");
+        $dbComment   = mysqli_prepare($db, "insert into comments (gid, comment_id, attached_to, attached_type, parent_id, user_id, created_time, message, last_fetched) values (?, ?, ?, ?, ?, ?, ?, ?, now()) on duplicate key update last_fetched = now(), fetch_count = fetch_count + 1, message = values(message)");
+        $dbPhoto     = mysqli_prepare($db, "insert into photos (gid, photo_id, attached_to, attached_type, album_id, owner_id, height, width, src, src_ext, src_big, src_big_ext, caption, permalink) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) on duplicate key update last_fetched = now(), fetch_count = fetch_count + 1, album_id = values(album_id), height = values(height), width = values(width), src = values(src), src_ext = values(src_ext), src_big = values(src_big), src_big_ext = values(src_big_ext), caption = values(caption), permalink = values(permalink)");
+        $dbPhotoSrc  = mysqli_prepare($db, "update photos set height = ?, width = ?, src_big = ?, src_big_ext = ? where photo_id = ?");
+        $dbUser      = mysqli_prepare($db, "insert into users (user_id, first_name, last_name, name, last_fetched) values (?, ?, ?, ?, now()) on duplicate key update last_fetched = now(), fetch_count = fetch_count + 1, first_name = values(first_name), last_name = values(last_name), name = values(name)");
         $dbInterval  = mysqli_prepare($db, "insert into intervals (gid, interval_start, interval_stop, fetch_start, fetch_stop, posts, comments, photos) values (?, ?, ?, ?, ?, ?, ?, ?)");
 
         if ( ! $dbPost || ! $dbComment || ! $dbPhoto || ! $dbPhotoSrc || ! $dbUser || ! $dbInterval)
@@ -60,8 +60,8 @@ if (isset($_POST["gid"]))
 
         $bindResult  = mysqli_stmt_bind_param($dbPost, "isissss", $_gid, $_post_id, $_user_id, $_created_time, $_updated_time, $_message, $_permalink);
         $bindResult  = mysqli_stmt_bind_param($dbComment, "issssiss", $_gid, $_comment_id, $_attached_to, $_attached_type, $_parent_id, $_user_id, $_created_time, $_message) && $bindResult;
-        $bindResult  = mysqli_stmt_bind_param($dbPhoto, "issssissssss", $_gid, $_photo_id, $_attached_to, $_attached_type, $_album_id, $_owner_id, $_src, $_src_ext, $_src_big, $_src_big_ext, $_caption, $_permalink) && $bindResult;
-        $bindResult  = mysqli_stmt_bind_param($dbPhotoSrc, "sss", $_src_big, $_src_big_ext, $_photo_id) && $bindResult;
+        $bindResult  = mysqli_stmt_bind_param($dbPhoto, "issssiiissssss", $_gid, $_photo_id, $_attached_to, $_attached_type, $_album_id, $_owner_id, $_height, $_width, $_src, $_src_ext, $_src_big, $_src_big_ext, $_caption, $_permalink) && $bindResult;
+        $bindResult  = mysqli_stmt_bind_param($dbPhotoSrc, "iisss", $_height, $_width, $_src_big, $_src_big_ext, $_photo_id) && $bindResult;
         $bindResult  = mysqli_stmt_bind_param($dbUser, "isss", $_user_id, $_first_name, $_last_name, $_name) && $bindResult;
         $bindResult  = mysqli_stmt_bind_param($dbInterval, "issssiii", $_gid, $_interval_start, $_interval_stop, $_fetch_start, $_fetch_stop, $_posts, $_comments, $_photos) && $bindResult;
 
@@ -126,6 +126,8 @@ if (isset($_POST["gid"]))
                                     $_attached_to  = $post["post_id"];
                                     $_album_id     = $media["photo"]["aid"] ? $media["photo"]["aid"] : null;
                                     $_owner_id     = $media["photo"]["owner"];
+                                    $_height       = $media["photo"]["height"];
+                                    $_width        = $media["photo"]["width"];
                                     $_src          = $media["src"];
                                     $_src_ext      = getExt($media["src"]);
                                     $_caption      = $media["alt"];
@@ -173,6 +175,8 @@ if (isset($_POST["gid"]))
                                 $_attached_type  = "comment";
                                 $_album_id       = null;
                                 $_owner_id       = $comment["fromid"];
+                                $_height         = $comment["attachment"]["media"]["image"]["height"];
+                                $_width          = $comment["attachment"]["media"]["image"]["width"];
                                 $_src            = $comment["attachment"]["media"]["image"]["src"];
                                 $_src_ext        = getExt($comment["attachment"]["media"]["image"]["src"]);
                                 $_caption        = null;
@@ -197,6 +201,8 @@ if (isset($_POST["gid"]))
                     foreach ($photos as $photo)
                     {
                         $_photo_id     = $photo["object_id"];
+                        $_height       = $photo["images"][0]["height"];
+                        $_width        = $photo["images"][0]["width"];
                         $_src_big      = $photo["images"][0]["source"];
                         $_src_big_ext  = getExt($photo["images"][0]["source"]);
                         mysqli_stmt_execute($dbPhotoSrc);
