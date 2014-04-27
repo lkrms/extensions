@@ -51,7 +51,7 @@ if (isset($_POST["gid"]))
         $dbPhoto     = mysqli_prepare($db, "insert into photos (gid, photo_id, attached_to, attached_type, album_id, owner_id, height, width, src, src_ext, src_big, src_big_ext, caption, permalink) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) on duplicate key update last_fetched = now(), fetch_count = fetch_count + 1, album_id = values(album_id), height = values(height), width = values(width), src = values(src), src_ext = values(src_ext), src_big = values(src_big), src_big_ext = values(src_big_ext), caption = values(caption), permalink = values(permalink)");
         $dbPhotoSrc  = mysqli_prepare($db, "update photos set height = ?, width = ?, src_big = ?, src_big_ext = ? where photo_id = ?");
         $dbUser      = mysqli_prepare($db, "insert into users (user_id, first_name, last_name, name, last_fetched) values (?, ?, ?, ?, now()) on duplicate key update last_fetched = now(), fetch_count = fetch_count + 1, first_name = values(first_name), last_name = values(last_name), name = values(name)");
-        $dbInterval  = mysqli_prepare($db, "insert into intervals (gid, interval_start, interval_stop, fetch_start, fetch_stop, posts, comments, photos) values (?, ?, ?, ?, ?, ?, ?, ?)");
+        $dbInterval  = mysqli_prepare($db, "insert into intervals (gid, job_id, interval_start, interval_stop, fetch_start, fetch_stop, posts, comments, photos) values (?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         if ( ! $dbPost || ! $dbComment || ! $dbPhoto || ! $dbPhotoSrc || ! $dbUser || ! $dbInterval)
         {
@@ -63,7 +63,7 @@ if (isset($_POST["gid"]))
         $bindResult  = mysqli_stmt_bind_param($dbPhoto, "issssiiissssss", $_gid, $_photo_id, $_attached_to, $_attached_type, $_album_id, $_owner_id, $_height, $_width, $_src, $_src_ext, $_src_big, $_src_big_ext, $_caption, $_permalink) && $bindResult;
         $bindResult  = mysqli_stmt_bind_param($dbPhotoSrc, "iisss", $_height, $_width, $_src_big, $_src_big_ext, $_photo_id) && $bindResult;
         $bindResult  = mysqli_stmt_bind_param($dbUser, "isss", $_user_id, $_first_name, $_last_name, $_name) && $bindResult;
-        $bindResult  = mysqli_stmt_bind_param($dbInterval, "issssiii", $_gid, $_interval_start, $_interval_stop, $_fetch_start, $_fetch_stop, $_posts, $_comments, $_photos) && $bindResult;
+        $bindResult  = mysqli_stmt_bind_param($dbInterval, "iissssiii", $_gid, $_job_id, $_interval_start, $_interval_stop, $_fetch_start, $_fetch_stop, $_posts, $_comments, $_photos) && $bindResult;
 
         if ( ! $bindResult)
         {
@@ -71,6 +71,10 @@ if (isset($_POST["gid"]))
         }
 
         $_gid = $gid + 0;
+
+        // create a job, get a job number
+        mysqli_query($db, "insert into jobs (gid, start_time) values ($gid, utc_timestamp())");
+        $_job_id = mysqli_insert_id($db);
 
         // we'll be working backwards from 60 seconds ago
         $stop   = time() - 60;
