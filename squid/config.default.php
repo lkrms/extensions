@@ -12,9 +12,13 @@ define("SQUID_DEFAULT_REDIRECT", "http://www.mydomain.com/");
 // how many seconds to wait for MySQL / Profile Manager / LDAP connections
 define("SQUID_CONNECT_TIMEOUT", 4);
 
-// how many seconds to cache credentials for (unless an explicit session expiry has been set)
+// how many seconds to cache credentials for (unless an explicit session expiry has been set in BYOD database)
 define("SQUID_DEFAULT_TTL", 300);
 define("SQUID_MAX_TTL", 300);
+
+// some requests can trigger a temporary "authenticated" state, e.g. to allow iCloud backups to proceed
+define("SQUID_VIRTUAL_USER", "virtual_user");
+define("SQUID_VIRTUAL_TTL", 3600);
 
 // LDAP settings (credentials are used when checking group membership)
 define("SQUID_LDAP_SERVER", "DC01");

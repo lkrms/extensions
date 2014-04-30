@@ -185,8 +185,9 @@ while ( ! feof(STDIN))
         writeReply("OK");
 
         // cache accordingly if so
-        $input[1] = substr($input[1], 2);
-        cacheResult($srcIP, $mac, $input[1], null, $ttl);
+        $input[1]     = substr($input[1], 2);
+        $virtualUser  = $input[1] == "VIRTUAL";
+        cacheResult($srcIP, $mac, $virtualUser ? "" : $input[1], $virtualUser ? (defined("SQUID_VIRTUAL_USER") ? SQUID_VIRTUAL_USER : "virtual") : null, $virtualUser ? SQUID_VIRTUAL_TTL : $ttl);
 
         continue;
     }
