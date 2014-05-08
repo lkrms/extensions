@@ -71,19 +71,41 @@ $ics    = array();
 $ics[]  = "BEGIN:VCALENDAR";
 $ics[]  = "PRODID:-//lkrms.org//osTicket Calendar 1.0//EN";
 $ics[]  = "VERSION:2.0";
-$ics[]  = "X-WR-CALNAME:" . $ostSettings["helpdesk_title"];
 
 // add some ticket filtering criteria if requested
-$sql = "";
+$sql   = "";
+$name  = $ostSettings["helpdesk_title"];
 
 if ( ! OST_CLI && $userId = _get("user"))
 {
-    $sql = "and ost_ticket.staff_id = " . StringToInt($userId, "Invalid user ID.");
+    $userId  = StringToInt($userId, "Invalid user ID.");
+    $rs      = $db->query("select firstname, lastname from ost_staff where staff_id = $userId");
+
+    if ( ! ($r = $rs->fetch_assoc()))
+    {
+        exit ("No matching user ID.");
+    }
+
+    $rs->close();
+    $name .= " for $r[firstname] $r[lastname]";
+    $sql   = "and ost_ticket.staff_id = " . $userId;
 }
 elseif ( ! OST_CLI && $deptId = _get("dept"))
 {
-    $sql = "and ost_ticket.dept_id = " . StringToInt($deptId, "Invalid department ID.");
+    $deptId  = StringToInt($deptId, "Invalid department ID.");
+    $rs      = $db->query("select dept_name from ost_department where dept_id = $deptId");
+
+    if ( ! ($r = $rs->fetch_assoc()))
+    {
+        exit ("No matching department ID.");
+    }
+
+    $rs->close();
+    $name  = "$r[dept_name], $name";
+    $sql   = "and ost_ticket.dept_id = " . $deptId;
 }
+
+$ics[] = "X-WR-CALNAME:$name";
 
 // we only care about open tickets with a due date
 $rs = $db->query("
