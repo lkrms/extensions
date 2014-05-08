@@ -21,4 +21,7 @@ define("OST_UPCOMING_DAYS", 5);
 define("OST_TICKET_SINGULAR", "ticket");
 define("OST_TICKET_PLURAL", "tickets");
 
+// a secret token that must be provided when retrieving iCalendar data
+define("OST_ICS_TOKEN", "");
+
 ?>

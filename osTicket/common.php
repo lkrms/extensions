@@ -219,6 +219,29 @@ function ShortName($fullName)
     return implode(" ", $names);
 }
 
+function UTCDateTime($dateString, $addSeconds = 0)
+{
+    $ts  = strtotime($dateString) + $addSeconds;
+    $tz  = date_default_timezone_get();
+    date_default_timezone_set("UTC");
+    $utc = date('Ymd\THis\Z', $ts);
+    date_default_timezone_set($tz);
+
+    return $utc;
+}
+
+function _get($name, $default = "")
+{
+    if (isset($_GET[$name]))
+    {
+        return $_GET[$name];
+    }
+    else
+    {
+        return $default;
+    }
+}
+
 // PRETTY_NESTED_ARRAYS,0
 
 ?>
