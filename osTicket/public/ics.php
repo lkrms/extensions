@@ -87,7 +87,7 @@ if ( ! OST_CLI && $userId = _get("user"))
     }
 
     $rs->close();
-    $name .= " for $r[firstname] $r[lastname]";
+    $name  = "$r[firstname] $r[lastname] at $name";
     $sql   = "and ost_ticket.staff_id = " . $userId;
 }
 elseif ( ! OST_CLI && $deptId = _get("dept"))
@@ -101,7 +101,7 @@ elseif ( ! OST_CLI && $deptId = _get("dept"))
     }
 
     $rs->close();
-    $name  = "$r[dept_name], $name";
+    $name  = "$r[dept_name] at $name";
     $sql   = "and ost_ticket.dept_id = " . $deptId;
 }
 
