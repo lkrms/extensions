@@ -3,7 +3,7 @@
 define("OST_ROOT", dirname(__file__) . "/..");
 require_once (OST_ROOT . "/common.php");
 
-if ( ! OST_CLI && ( ! defined(OST_ICS_TOKEN) || ! _get("token") || _get("token") != OST_ICS_TOKEN))
+if ( ! OST_CLI && ( ! defined("OST_ICS_TOKEN") || ! _get("token") || _get("token") != OST_ICS_TOKEN))
 {
     exit ("Invalid access token.");
 }
