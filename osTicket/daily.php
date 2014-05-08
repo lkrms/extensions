@@ -66,9 +66,9 @@ select ost_staff.firstname,
     ost_staff.lastname,
     ost_staff.email,
     ost_ticket.ticket_id,
-    ost_ticket.ticketID,
-    ost_ticket.name,
-    ost_ticket.subject,
+    ost_ticket.number as ticketID,
+    ost_user.name,
+    ost_ticket__cdata.subject,
     ost_ticket.duedate,
     ost_ticket.lastmessage,
     ost_ticket.lastresponse,
@@ -78,7 +78,9 @@ select ost_staff.firstname,
     coalesce(ost_ticket_priority.priority_urgency, (select priority_urgency from ost_ticket_priority where priority_id = (select `value` from ost_config where `key` = 'default_priority_id'))) as priority_urgency,
     ost_help_topic.topic
 from ost_ticket
-    left join ost_ticket_priority on ost_ticket.priority_id = ost_ticket_priority.priority_id
+    inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
+    inner join ost_user on ost_ticket.user_id = ost_user.id
+    left join ost_ticket_priority on ost_ticket__cdata.priority_id = ost_ticket_priority.priority_id
     left join ost_help_topic on ost_ticket.topic_id = ost_help_topic.topic_id
     inner join ost_staff on ost_ticket.dept_id = ost_staff.dept_id
 where ost_ticket.status <> 'closed'
@@ -95,9 +97,9 @@ select ost_staff.firstname,
     ost_staff.lastname,
     ost_staff.email,
     ost_ticket.ticket_id,
-    ost_ticket.ticketID,
-    ost_ticket.name,
-    ost_ticket.subject,
+    ost_ticket.number as ticketID,
+    ost_user.name,
+    ost_ticket__cdata.subject,
     ost_ticket.duedate,
     ost_ticket.lastmessage,
     ost_ticket.lastresponse,
@@ -107,7 +109,9 @@ select ost_staff.firstname,
     coalesce(ost_ticket_priority.priority_urgency, (select priority_urgency from ost_ticket_priority where priority_id = (select `value` from ost_config where `key` = 'default_priority_id'))) as priority_urgency,
     ost_help_topic.topic
 from ost_ticket
-    left join ost_ticket_priority on ost_ticket.priority_id = ost_ticket_priority.priority_id
+    inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
+    inner join ost_user on ost_ticket.user_id = ost_user.id
+    left join ost_ticket_priority on ost_ticket__cdata.priority_id = ost_ticket_priority.priority_id
     left join ost_help_topic on ost_ticket.topic_id = ost_help_topic.topic_id
     inner join ost_staff on ost_ticket.staff_id = ost_staff.staff_id
 where ost_ticket.status <> 'closed'
@@ -124,9 +128,9 @@ select ost_staff.firstname,
     ost_staff.lastname,
     ost_staff.email,
     ost_ticket.ticket_id,
-    ost_ticket.ticketID,
-    ost_ticket.name,
-    ost_ticket.subject,
+    ost_ticket.number as ticketID,
+    ost_user.name,
+    ost_ticket__cdata.subject,
     ost_ticket.duedate,
     ost_ticket.lastmessage,
     ost_ticket.lastresponse,
@@ -136,7 +140,9 @@ select ost_staff.firstname,
     coalesce(ost_ticket_priority.priority_urgency, (select priority_urgency from ost_ticket_priority where priority_id = (select `value` from ost_config where `key` = 'default_priority_id'))) as priority_urgency,
     ost_help_topic.topic
 from ost_ticket
-    left join ost_ticket_priority on ost_ticket.priority_id = ost_ticket_priority.priority_id
+    inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
+    inner join ost_user on ost_ticket.user_id = ost_user.id
+    left join ost_ticket_priority on ost_ticket__cdata.priority_id = ost_ticket_priority.priority_id
     left join ost_help_topic on ost_ticket.topic_id = ost_help_topic.topic_id
     inner join ost_staff on ost_ticket.staff_id = ost_staff.staff_id
 where ost_ticket.status <> 'closed'
@@ -154,9 +160,9 @@ select ost_staff.firstname,
     ost_staff.lastname,
     ost_staff.email,
     ost_ticket.ticket_id,
-    ost_ticket.ticketID,
-    ost_ticket.name,
-    ost_ticket.subject,
+    ost_ticket.number as ticketID,
+    ost_user.name,
+    ost_ticket__cdata.subject,
     ost_ticket.duedate,
     ost_ticket.lastmessage,
     ost_ticket.lastresponse,
@@ -166,7 +172,9 @@ select ost_staff.firstname,
     coalesce(ost_ticket_priority.priority_urgency, (select priority_urgency from ost_ticket_priority where priority_id = (select `value` from ost_config where `key` = 'default_priority_id'))) as priority_urgency,
     ost_help_topic.topic
 from ost_ticket
-    left join ost_ticket_priority on ost_ticket.priority_id = ost_ticket_priority.priority_id
+    inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
+    inner join ost_user on ost_ticket.user_id = ost_user.id
+    left join ost_ticket_priority on ost_ticket__cdata.priority_id = ost_ticket_priority.priority_id
     left join ost_help_topic on ost_ticket.topic_id = ost_help_topic.topic_id
     inner join ost_staff on ost_ticket.staff_id = ost_staff.staff_id
 where ost_ticket.status <> 'closed'
