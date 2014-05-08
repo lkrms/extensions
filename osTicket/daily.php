@@ -200,7 +200,7 @@ $rs->close();
 $db->close();
 
 // ensure our URL has a trailing slash
-if (substr($ostSettings["helpdesk_url"], strlen($ostSettings["helpdesk_url"]) - 1, 1) != "/")
+if (substr($ostSettings["helpdesk_url"], - 1) != "/")
 {
     $ostSettings["helpdesk_url"] .= "/";
 }

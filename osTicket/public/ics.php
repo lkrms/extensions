@@ -10,7 +10,7 @@ if ( ! OST_CLI && ( ! defined("OST_ICS_TOKEN") || ! _get("token") || _get("token
 
 function AddCalendarEvent( array $r, array & $arr)
 {
-    global $ostSettings;
+    global $ostSettings, $isUser;
 
     // see http://www.kanzaki.com/docs/ical/vevent.html (or RFC 2445 itself)
     $arr[] = "BEGIN:VEVENT";
@@ -31,10 +31,11 @@ function AddCalendarEvent( array $r, array & $arr)
         $arr[]  = "DTEND:" . UTCDateTime($r["duedate"], OST_ICS_EVENT_DURATION * 60);
     }
 
-    $arr[]  = "SUMMARY:" . $r["subject"];
-    $arr[]  = "DESCRIPTION:Requested by $r[name] in " . OST_TICKET_SINGULAR . " #$r[ticketID]. Currently assigned to $r[firstname] $r[lastname].";
+    $arr[]  = "SUMMARY:$r[subject]";
+    $arr[]  = "DESCRIPTION:Requested by $r[name] in " . OST_TICKET_SINGULAR . " #$r[ticketID]." . ($isUser ? "" : " Currently assigned to $r[firstname] $r[lastname].");
     $arr[]  = "CREATED:" . UTCDateTime($r["created"]);
     $arr[]  = "LAST-MODIFIED:" . UTCDateTime($r["updated"]);
+    $arr[]  = "URL:$ostSettings[helpdesk_url]scp/tickets.php?id=$r[ticket_id]";
     $arr[]  = "END:VEVENT";
 }
 
@@ -66,6 +67,12 @@ select
 $ostSettings = $rs->fetch_assoc();
 $rs->close();
 
+// ensure our URL has a trailing slash
+if (substr($ostSettings["helpdesk_url"], - 1) != "/")
+{
+    $ostSettings["helpdesk_url"] .= "/";
+}
+
 // build out our iCalendar object
 $ics    = array();
 $ics[]  = "BEGIN:VCALENDAR";
@@ -73,8 +80,9 @@ $ics[]  = "PRODID:-//lkrms.org//osTicket Calendar 1.0//EN";
 $ics[]  = "VERSION:2.0";
 
 // add some ticket filtering criteria if requested
-$sql   = "";
-$name  = $ostSettings["helpdesk_title"];
+$sql     = "";
+$name    = $ostSettings["helpdesk_title"];
+$isUser  = false;
 
 if ( ! OST_CLI && $userId = _get("user"))
 {
@@ -87,8 +95,9 @@ if ( ! OST_CLI && $userId = _get("user"))
     }
 
     $rs->close();
-    $name  = "$r[firstname] $r[lastname] at $name";
-    $sql   = "and ost_ticket.staff_id = " . $userId;
+    $name    = "$r[firstname] $r[lastname] at $name";
+    $sql     = "and ost_ticket.staff_id = " . $userId;
+    $isUser  = true;
 }
 elseif ( ! OST_CLI && $deptId = _get("dept"))
 {
