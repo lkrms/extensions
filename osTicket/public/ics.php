@@ -11,6 +11,8 @@ if ( ! OST_CLI && ( ! defined(OST_ICS_TOKEN) || ! _get("token") || _get("token")
 function AddCalendarEvent( array $r, array & $arr)
 {
     global $ostSettings;
+
+    // see http://www.kanzaki.com/docs/ical/vevent.html (or RFC 2445 itself)
     $arr[] = "BEGIN:VEVENT";
 
     // required for Outlook 2002-2003
@@ -20,15 +22,18 @@ function AddCalendarEvent( array $r, array & $arr)
     // if no time is specified, create an all-day event
     if (substr($r["duedate"], - 8) == "00:00:00")
     {
+        // use the DATE data type
         $arr[] = "DTSTART:" . date("Ymd", strtotime($r["duedate"]));
     }
     else
     {
         $arr[]  = "DTSTART:" . UTCDateTime($r["duedate"]);
-        $arr[]  = "DTEND:" . UTCDateTime($r["duedate"], 30 * 60);
+        $arr[]  = "DTEND:" . UTCDateTime($r["duedate"], OST_ICS_EVENT_DURATION * 60);
     }
 
-    $arr[] = "END:VEVENT";
+    $arr[]  = "SUMMARY:" . $r["subject"];
+    $arr[]  = "DESCRIPTION:Requested by $r[name] in " . OST_TICKET_SINGULAR . " #$r[ticketID]. Currently assigned to $r[firstname] $r[lastname]. More: $ostSettings[helpdesk_url]scp/tickets.php?id=$r[ticket_id]";
+    $arr[]  = "END:VEVENT";
 }
 
 function StringToInt($str, $err = "Invalid integer.")
@@ -37,6 +42,8 @@ function StringToInt($str, $err = "Invalid integer.")
     {
         exit ($err);
     }
+
+    return $str + 0;
 }
 
 $db = new mysqli(DBHOST, DBUSER, DBPASS, DBNAME);
@@ -56,7 +63,7 @@ select
 $ostSettings = $rs->fetch_assoc();
 $rs->close();
 
-// build out our
+// build out our iCalendar object
 $ics    = array();
 $ics[]  = "BEGIN:VCALENDAR";
 $ics[]  = "VERSION:2.0";

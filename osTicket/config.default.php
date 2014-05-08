@@ -24,4 +24,7 @@ define("OST_TICKET_PLURAL", "tickets");
 // a secret token that must be provided when retrieving iCalendar data
 define("OST_ICS_TOKEN", "");
 
+// how many minutes for tickets with a specific due time?
+define("OST_ICS_EVENT_DURATION", 30);
+
 ?>
