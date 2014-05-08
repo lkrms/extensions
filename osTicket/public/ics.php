@@ -16,7 +16,7 @@ function AddCalendarEvent( array $r, array & $arr)
     $arr[] = "BEGIN:VEVENT";
 
     // required for Outlook 2002-2003
-    $arr[]  = "UID:" . uniqid() . "-" . $ostSettings["default_email"];
+    $arr[]  = "UID:" . md5($r["ticket_id"]) . "-" . $ostSettings["default_email"];
     $arr[]  = "DTSTAMP:" . UTCDateTime($r["created"]);
 
     // if no time is specified, create an all-day event
@@ -32,7 +32,9 @@ function AddCalendarEvent( array $r, array & $arr)
     }
 
     $arr[]  = "SUMMARY:" . $r["subject"];
-    $arr[]  = "DESCRIPTION:Requested by $r[name] in " . OST_TICKET_SINGULAR . " #$r[ticketID]. Currently assigned to $r[firstname] $r[lastname]. More: $ostSettings[helpdesk_url]scp/tickets.php?id=$r[ticket_id]";
+    $arr[]  = "DESCRIPTION:Requested by $r[name] in " . OST_TICKET_SINGULAR . " #$r[ticketID]. Currently assigned to $r[firstname] $r[lastname].";
+    $arr[]  = "CREATED:" . UTCDateTime($r["created"]);
+    $arr[]  = "LAST-MODIFIED:" . UTCDateTime($r["updated"]);
     $arr[]  = "END:VEVENT";
 }
 
@@ -57,6 +59,7 @@ if (mysqli_connect_error())
 // load settings from osTicket
 $rs = $db->query("
 select
+    (select `value` from ost_config where `key` = 'helpdesk_title') as helpdesk_title,
     (select `value` from ost_config where `key` = 'helpdesk_url') as helpdesk_url,
     (select email from ost_email where email_id = (select `value` from ost_config where `key` = 'default_email_id')) as default_email
 ");
@@ -66,7 +69,9 @@ $rs->close();
 // build out our iCalendar object
 $ics    = array();
 $ics[]  = "BEGIN:VCALENDAR";
+$ics[]  = "PRODID:-//lkrms.org//osTicket Calendar 1.0//EN";
 $ics[]  = "VERSION:2.0";
+$ics[]  = "X-WR-CALNAME:" . $ostSettings["helpdesk_title"];
 
 // add some ticket filtering criteria if requested
 $sql = "";
