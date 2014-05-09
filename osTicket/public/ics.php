@@ -12,6 +12,12 @@ function AddCalendarEvent( array $r, array & $arr)
 {
     global $ostSettings, $isUser;
 
+    // for clarity, some events are marked "DUE:"
+    $subjectPrefix = "";
+
+    // see http://www.kanzaki.com/docs/ical/duration-t.html
+    $alarmTime = "-PT30M";
+
     // see http://www.kanzaki.com/docs/ical/vevent.html (or RFC 2445 itself)
     $arr[] = "BEGIN:VEVENT";
 
@@ -19,11 +25,13 @@ function AddCalendarEvent( array $r, array & $arr)
     $arr[]  = "UID:" . md5($r["ticket_id"]) . "-" . $ostSettings["default_email"];
     $arr[]  = "DTSTAMP:" . UTCDateTime($r["created"]);
 
-    // if no time is specified, create an all-day event
+    // if no time is specified, create an all-day event with an alarm 40 hours prior
     if (substr($r["duedate"], - 8) == "00:00:00")
     {
         // use the DATE data type
-        $arr[] = "DTSTART:" . date("Ymd", strtotime($r["duedate"]));
+        $arr[]          = "DTSTART:" . date("Ymd", strtotime($r["duedate"]));
+        $subjectPrefix  = "DUE: ";
+        $alarmTime      = UTCDateTime($r["duedate"], - 40 * 60 * 60);
     }
     else
     {
@@ -31,11 +39,17 @@ function AddCalendarEvent( array $r, array & $arr)
         $arr[]  = "DTEND:" . UTCDateTime($r["duedate"], OST_ICS_EVENT_DURATION * 60);
     }
 
-    $arr[]  = "SUMMARY:$r[subject]";
+    $arr[]  = "SUMMARY:{$subjectPrefix}$r[subject]";
     $arr[]  = "DESCRIPTION:Requested by $r[name] in " . OST_TICKET_SINGULAR . " #$r[ticketID]." . ($isUser ? "" : " Currently assigned to $r[firstname] $r[lastname].");
     $arr[]  = "CREATED:" . UTCDateTime($r["created"]);
     $arr[]  = "LAST-MODIFIED:" . UTCDateTime($r["updated"]);
     $arr[]  = "URL:$ostSettings[helpdesk_url]scp/tickets.php?id=$r[ticket_id]";
+    $arr[]  = "TRANSP:TRANSPARENT";
+    $arr[]  = "BEGIN:VALARM";
+    $arr[]  = "TRIGGER:$alarmTime";
+    $arr[]  = "ACTION:DISPLAY";
+    $arr[]  = "DESCRIPTION:$r[subject]";
+    $arr[]  = "END:VALARM";
     $arr[]  = "END:VEVENT";
 }
 
