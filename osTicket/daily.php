@@ -8,9 +8,14 @@ if ( ! OST_CLI)
     exit ("This script is CLI-only.");
 }
 
-function SplitRecords(mysqli_result $rs, array & $arr)
+function SplitRecords($rs, array & $arr)
 {
-    global $staffEmails;
+    global $db, $staffEmails;
+
+    if ( ! $rs)
+    {
+        exit ("Error retrieving data from osTicket database: " . $db->error);
+    }
 
     while ($r = $rs->fetch_assoc())
     {
