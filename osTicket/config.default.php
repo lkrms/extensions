@@ -27,4 +27,10 @@ define("OST_ICS_TOKEN", "");
 // how many minutes for tickets with a specific due time?
 define("OST_ICS_EVENT_DURATION", 30);
 
+// 0-6, Sunday-Saturday
+$OST_WEEKEND_DAYS = array(
+    0,    // Sunday
+    6    // Saturday
+);
+
 ?>

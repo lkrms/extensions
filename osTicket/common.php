@@ -219,10 +219,41 @@ function ShortName($fullName)
     return implode(" ", $names);
 }
 
-function UTCDateTime($dateString, $addSeconds = 0)
+function UTCDateTime($dateString, $addSeconds = 0, $adjustForWeekend = true)
 {
-    $ts  = strtotime($dateString) + $addSeconds;
-    $tz  = date_default_timezone_get();
+    global $OST_WEEKEND_DAYS;
+
+    // work in the local time zone for starters
+    $ts = strtotime($dateString);
+
+    if ($adjustForWeekend && $addSeconds)
+    {
+        $sign        = $addSeconds < 0 ? -1 : 1;
+        $addSeconds  = abs($addSeconds);
+        $days        = (int)floor($addSeconds / (24 * 60 * 60));
+        $ts         += $sign * ($addSeconds % (24 * 60 * 60));
+
+        do
+        {
+            if (is_array($OST_WEEKEND_DAYS) && in_array(date("w", $ts) + 0, $OST_WEEKEND_DAYS))
+            {
+                $days++;
+            }
+
+            if ($days > 0)
+            {
+                $days--;
+                $ts += $sign * (24 * 60 * 60);
+            }
+        }
+        while ($days > 0);
+    }
+    else
+    {
+        $ts += $addSeconds;
+    }
+
+    $tz = date_default_timezone_get();
     date_default_timezone_set("UTC");
     $utc = date('Ymd\THis\Z', $ts);
     date_default_timezone_set($tz);
