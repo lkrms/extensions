@@ -23,4 +23,10 @@ define("CANVAS_TOKEN", "TOKEN");
 // Canvas account ID for SIS imports
 define("CANVAS_ACCOUNT_ID", 1);
 
+// courses can be created per-term or per-year
+define("CANVAS_ALL_YEAR_COURSES", true);
+
+// course IDs are [YEAR][SUFFIX]C[SUBJECT_CODE|CLASS_CODE] (using T1 here can assist when transitioning to or from all-year courses)
+define("CANVAS_ALL_YEAR_COURSE_ID_SUFFIX", "T1");
+
 ?>

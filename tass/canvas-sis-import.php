@@ -81,7 +81,14 @@ from attendprd
 where cmpy_code = '01'
     and YEAR(start_date) <= YEAR(getdate()) + 1
     and end_date >= GETDATE()
-order by term_id"
+order by term_id",
+            "select att_year + 'ALL' as term_id, att_year + ' (All Year)' as name, 'active' as status, MIN(start_date) AS start_date, MAX(end_date) AS end_date
+from attendprd
+where cmpy_code = '01'
+    and YEAR(start_date) <= YEAR(getdate()) + 1
+    and YEAR(end_date) >= YEAR(getdate())
+group by att_year
+order by att_year"
         ),
     ),
 
@@ -102,7 +109,7 @@ order by term_id"
             7
         ),
         "sql" => array(
-            "select distinct attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code as course_id,
+            "select distinct attendprd.att_year + " . (CANVAS_ALL_YEAR_COURSES ? "'" . CANVAS_ALL_YEAR_COURSE_ID_SUFFIX . "'" : "'T' + rtrim(attendprd.att_period)") . " + 'C' + tchsub.sub_code as course_id,
     subtab.sub_short as short_name,
     case LEFT(tchsub.sub_code, 1)
         when '7' then 'Year 7'
@@ -122,17 +129,23 @@ order by term_id"
         end
     end + ' ' + subtab.sub_long as long_name,
     subtab.dept_code as account_id,
-    attendprd.att_year + 'T' + attendprd.att_period as term_id,
+    attendprd.att_year + " . (CANVAS_ALL_YEAR_COURSES ? "'ALL'" : "'T' + attendprd.att_period") . " as term_id,
     'active' as status,
     null as start_date,
     null as end_date
+from " . (CANVAS_ALL_YEAR_COURSES ? "(select top 1 cmpy_code, att_year, semester, start_date, end_date
 from attendprd
+where cmpy_code = '01'
+    and YEAR(start_date) <= YEAR(getdate()) + 1
+    and end_date >= getdate()
+order by start_date
+) attendprd" : "attendprd") . "
     inner join tchsub on tchsub.cmpy_code = '01' and attendprd.att_year = tchsub.year_num and attendprd.semester = tchsub.semester
     inner join subtab on subtab.cmpy_code = '01' and tchsub.sub_code = subtab.sub_code
     inner join subdept on subdept.cmpy_code = '01' and subtab.dept_code = subdept.dept_code
 where attendprd.cmpy_code = '01'
     and YEAR(attendprd.start_date) <= YEAR(getdate()) + 1
-    and attendprd.end_date >= GETDATE()
+    and attendprd.end_date >= getdate()
     and subtab.rpt_flg = 'Y'
     and not subtab.dept_code in ('NO', 'CAS')
     and not subtab.sub_short in ('GC')
