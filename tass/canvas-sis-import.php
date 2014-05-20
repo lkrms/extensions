@@ -168,8 +168,8 @@ order by short_name, course_id"
             5
         ),
         "sql" => array(
-            "select distinct attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + rtrim(tchsub.sub_code) + 'L' + tchsub.class as section_id,
-    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + tchsub.sub_code as course_id,
+            "select distinct attendprd.att_year + " . (CANVAS_ALL_YEAR_COURSES ? "'" . CANVAS_ALL_YEAR_COURSE_ID_SUFFIX . "'" : "'T' + rtrim(attendprd.att_period)") . " + 'C' + rtrim(tchsub.sub_code) + 'L' + tchsub.class as section_id,
+    attendprd.att_year + " . (CANVAS_ALL_YEAR_COURSES ? "'" . CANVAS_ALL_YEAR_COURSE_ID_SUFFIX . "'" : "'T' + rtrim(attendprd.att_period)") . " + 'C' + tchsub.sub_code as course_id,
     rtrim(subtab.sub_long) + ' ' + tchsub.class as name,
     'active' as status,
     null as start_date,
@@ -201,7 +201,7 @@ order by name, section_id"
             "select distinct null as course_id,
     studsub.stud_code as user_id,
     'student' as role,
-    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + rtrim(tchsub.sub_code) + 'L' + tchsub.class as section_id,
+    attendprd.att_year + " . (CANVAS_ALL_YEAR_COURSES ? "'" . CANVAS_ALL_YEAR_COURSE_ID_SUFFIX . "'" : "'T' + rtrim(attendprd.att_period)") . " + 'C' + rtrim(tchsub.sub_code) + 'L' + tchsub.class as section_id,
     'active' as status,
     null as associated_user_id
 from attendprd
@@ -230,7 +230,7 @@ order by section_id, user_id",
             "select null as course_id,
     teacher.emp_code as user_id,
     'teacher' as role,
-    attendprd.att_year + 'T' + rtrim(attendprd.att_period) + 'C' + rtrim(tchsub.sub_code) + 'L' + tchsub.class as section_id,
+    attendprd.att_year + " . (CANVAS_ALL_YEAR_COURSES ? "'" . CANVAS_ALL_YEAR_COURSE_ID_SUFFIX . "'" : "'T' + rtrim(attendprd.att_period)") . " + 'C' + rtrim(tchsub.sub_code) + 'L' + tchsub.class as section_id,
     'active' as status,
     null as associated_user_id
 from attendprd
