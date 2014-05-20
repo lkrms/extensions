@@ -331,50 +331,53 @@ foreach ($csv as $csvName => $csvMeta)
 $zip->close();
 mssql_close($db);
 
-// attempt to upload our ZIP file to Canvas
-$curl = curl_init(CANVAS_URL . "/api/v1/accounts/" . CANVAS_ACCOUNT_ID . "/sis_imports.json?import_type=instructure_csv");
-curl_setopt($curl, CURLOPT_HTTPHEADER, array(
+if ( ! isset($argc) || $argc == 1)
+{
+    // attempt to upload our ZIP file to Canvas
+    $curl = curl_init(CANVAS_URL . "/api/v1/accounts/" . CANVAS_ACCOUNT_ID . "/sis_imports.json?import_type=instructure_csv");
+    curl_setopt($curl, CURLOPT_HTTPHEADER, array(
     "Authorization: Bearer " . CANVAS_TOKEN
 ));
-curl_setopt($curl, CURLOPT_POST, true);
-curl_setopt($curl, CURLOPT_POSTFIELDS, array(
+    curl_setopt($curl, CURLOPT_POST, true);
+    curl_setopt($curl, CURLOPT_POSTFIELDS, array(
     "attachment" => "@$zipFile"
 ));
-curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-$resultJson = curl_exec($curl);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    $resultJson = curl_exec($curl);
 
-// provide a result notification by email
-$to = NOTIFY_EMAIL;
-$subject = "Canvas SIS import [ref: $ref]";
-$message = "";
+    // provide a result notification by email
+    $to = NOTIFY_EMAIL;
+    $subject = "Canvas SIS import [ref: $ref]";
+    $message = "";
 
-if ($resultJson === false)
-{
-    $to = ERROR_EMAIL;
-    $subject = "FAILURE: $subject";
-    $message = "Error uploading CSV archive to " . CANVAS_URL . ": " . curl_error($curl);
-    curl_close($curl);
-}
-else
-{
-    curl_close($curl);
-    $result = json_decode($resultJson, true);
-
-    if (is_null($result) || ! isset($result["id"]))
+    if ($resultJson === false)
     {
         $to = ERROR_EMAIL;
         $subject = "FAILURE: $subject";
-        $message = "Invalid response from " . CANVAS_URL . ": " . $resultJson;
+        $message = "Error uploading CSV archive to " . CANVAS_URL . ": " . curl_error($curl);
+        curl_close($curl);
     }
     else
     {
-        $importID = $result["id"];
-        $subject = "Success: $subject";
-        $message = "Import started with ID $importID.";
-    }
-}
+        curl_close($curl);
+        $result = json_decode($resultJson, true);
 
-mail($to, $subject, $message, "From: " . NOTIFY_EMAIL_FROM);
+        if (is_null($result) || ! isset($result["id"]))
+        {
+            $to = ERROR_EMAIL;
+            $subject = "FAILURE: $subject";
+            $message = "Invalid response from " . CANVAS_URL . ": " . $resultJson;
+        }
+        else
+        {
+            $importID = $result["id"];
+            $subject = "Success: $subject";
+            $message = "Import started with ID $importID.";
+        }
+    }
+
+    mail($to, $subject, $message, "From: " . NOTIFY_EMAIL_FROM);
+}
 
 // PRETTY_ALIGN,0
 
