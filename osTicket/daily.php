@@ -188,6 +188,7 @@ where ost_ticket.status <> 'closed'
     and (ost_ticket.duedate is null
     or ost_ticket.duedate >= adddate(curdate(), " . (OST_UPCOMING_DAYS + 1) . "))
     and ost_ticket.isoverdue = 0
+    and ost_ticket_priority.priority_urgency <= " . OST_MAX_URGENCY . "
 order by email, duedate, priority_urgency, created
 "), $pending);
 

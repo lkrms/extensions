@@ -17,6 +17,9 @@ define("OST_GENERAL_DATE_FORMAT", "j-M");
 // How many days into the future to display under "upcoming tickets".
 define("OST_UPCOMING_DAYS", 5);
 
+// Tickets with a higher "priority_urgency" will not be included under "tickets assigned to you" in emails.
+define("OST_MAX_URGENCY", 3);
+
 // e.g. you might want to call it a "job" rather than a "ticket".
 define("OST_TICKET_SINGULAR", "ticket");
 define("OST_TICKET_PLURAL", "tickets");
