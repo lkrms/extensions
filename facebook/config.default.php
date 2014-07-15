@@ -10,6 +10,9 @@ define("FACEBOOK_ARCHIVE_INTERVAL", 60 * 60 * 24 * 30);
 // how many of these intervals to query (counting backwards from now, 0 to disable)
 define("FACEBOOK_ARCHIVE_MAX_INTERVALS", 0);
 
+// graph or fql
+define("FACEBOOK_ARCHIVE_METHOD", "graph");
+
 // MySQL connection details
 define("FACEBOOK_DB_SERVER", "localhost");
 define("FACEBOOK_DB_USERNAME", "facebook");
@@ -18,5 +21,8 @@ define("FACEBOOK_DB_NAME", "facebook");
 
 // default local timezone
 define("FACEBOOK_TIMEZONE", "Australia/Sydney");
+
+// download target (allow for indefinite growth)
+define("FACEBOOK_GROUP_ARCHIVE_ROOT", FACEBOOK_ROOT . "/.groupArchive");
 
 ?>

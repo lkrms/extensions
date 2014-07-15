@@ -5,8 +5,6 @@ if ( ! defined("FACEBOOK_ROOT"))
     define("FACEBOOK_ROOT", dirname(__file__));
 }
 
-define("FACEBOOK_GROUP_ARCHIVE_ROOT", FACEBOOK_ROOT . "/.groupArchive");
-
 // load settings
 require_once (FACEBOOK_ROOT . "/config.php");
 
@@ -31,6 +29,34 @@ function getExt($url)
     return pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION);
 }
 
+function getGraphPage($fb, $pageUrl)
+{
+    $url   = parse_url(urldecode($pageUrl));
+    $path  = explode("/", $url["path"]);
+
+    if ($path[0] == "")
+    {
+        array_shift($path);
+    }
+
+    if (preg_match('/^v[0-9]+\.[0-9]+$/', $path[0]))
+    {
+        array_shift($path);
+    }
+
+    $path    = "/" . implode("/", $path);
+    $query   = explode("&", $url["query"]);
+    $params  = array();
+
+    foreach ($query as $pair)
+    {
+        list ($key, $value)  = explode("=", $pair);
+        $params[$key]        = $value;
+    }
+
+    return $fb->api($path, $params);
+}
+
 function downloadPhotos($gid)
 {
     if ( ! file_exists(FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $gid))
@@ -45,22 +71,20 @@ function downloadPhotos($gid)
 
     $db = mysqli_connect(FACEBOOK_DB_SERVER, FACEBOOK_DB_USERNAME, FACEBOOK_DB_PASSWORD, FACEBOOK_DB_NAME);
 
-    if ($db && $rows = mysqli_query($db, "select photo_id, attached_to, attached_type, coalesce(src_big, src) as src, concat(gid, '/', photo_id, '_', attached_to, '_', attached_type, '.', coalesce(src_big_ext, src_ext)) as local_path from photos where gid = $gid and download_path is null"))
+    if ($db && $rows = mysqli_query($db, "select distinct photo_id, coalesce(src_big, src) as src, concat(gid, '/', photo_id, '.', coalesce(src_big_ext, src_ext)) as local_path from photos where gid = $gid and download_path is null"))
     {
-        $dbUpdate = mysqli_prepare($db, "update photos set download_path = ? where gid = ? and photo_id = ? and attached_to = ? and attached_type = ?");
-        mysqli_stmt_bind_param($dbUpdate, "sisss", $_download_path, $_gid, $_photo_id, $_attached_to, $_attached_type);
+        $dbUpdate = mysqli_prepare($db, "update photos set download_path = ? where gid = ? and photo_id = ?");
+        mysqli_stmt_bind_param($dbUpdate, "sis", $_download_path, $_gid, $_photo_id);
         $_gid = $gid + 0;
 
         while ($row = mysqli_fetch_row($rows))
         {
-            $filePath = FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $row["4"];
+            $filePath = FACEBOOK_GROUP_ARCHIVE_ROOT . '/' . $row["2"];
 
-            if ((file_exists($filePath) && touch($filePath)) || copy($row["3"], $filePath))
+            if ((file_exists($filePath) && touch($filePath)) || copy($row["1"], $filePath))
             {
-                $_download_path  = $row["4"];
+                $_download_path  = $row["2"];
                 $_photo_id       = $row["0"];
-                $_attached_to    = $row["1"];
-                $_attached_type  = $row["2"];
                 mysqli_stmt_execute($dbUpdate);
             }
         }
