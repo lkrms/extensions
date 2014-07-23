@@ -224,8 +224,8 @@ if (isset($_POST["gid"]))
 
                         foreach ($users as $user)
                         {
-                            $_user_id     = $user["uid"];
-                            $_name        = $user["name"] ? $user["name"] : null;
+                            $_user_id  = $user["uid"];
+                            $_name     = $user["name"] ? $user["name"] : null;
                             mysqli_stmt_execute($dbUser);
                         }
                     }
@@ -244,21 +244,15 @@ if (isset($_POST["gid"]))
         "link",
         "type",
         "object_id",
-        "comments.fields(id,parent.id,from.id,message,created_time).limit(100000)",
+        "comments.fields(id,parent.id,from.fields(id,name),message,created_time,attachment).limit(100000)",
     )
 ));
 
                     // metadata for photos attached to posts is collected later
-                    $_attached_type  = "post";
-                    $_album_id       = null;
-                    $_owner_id       = null;
-                    $_height         = null;
-                    $_width          = null;
-                    $_src            = null;
-                    $_src_ext        = null;
-                    $_src_big        = null;
-                    $_src_big_ext    = null;
-                    $_caption        = null;
+                    $_album_id     = null;
+                    $_src_big      = null;
+                    $_src_big_ext  = null;
+                    $_caption      = null;
 
                     while (isset($posts["data"]) || isset($posts["paging"]["next"]))
                     {
@@ -273,18 +267,77 @@ if (isset($_POST["gid"]))
                                 $_message       = isset($post["message"]) ? $post["message"] : null;
                                 $_permalink     = $post["type"] == "photo" ? null : (isset($post["link"]) ? $post["link"] : null);
                                 mysqli_stmt_execute($dbPost);
-                                $uids[] = $_user_id;
+                                $uids[$_user_id] = $post["from"]["name"];
                                 $postCount++;
 
                                 if ($post["type"] == "photo")
                                 {
-                                    $_photo_id     = $post["object_id"];
-                                    $_attached_to  = $post["id"];
-                                    $_permalink    = $post["link"];
+                                    $_photo_id       = $post["object_id"];
+                                    $_attached_to    = $post["id"];
+                                    $_attached_type  = "post";
+                                    $_owner_id       = null;
+                                    $_height         = null;
+                                    $_width          = null;
+                                    $_src            = null;
+                                    $_src_ext        = null;
+                                    $_permalink      = $post["link"];
                                     mysqli_stmt_execute($dbPhoto);
-                                    $pids[]  = $_photo_id;
-                                    $uids[]  = $_owner_id;
+                                    $pids[] = $_photo_id;
                                     $photoCount++;
+                                }
+
+                                while (isset($post["comments"]["data"]) || isset($post["comments"]["paging"]["next"]))
+                                {
+                                    if (isset($post["comments"]["data"]) && count($post["comments"]["data"]))
+                                    {
+                                        foreach ($post["comments"]["data"] as $comment)
+                                        {
+                                            $_comment_id     = $comment["id"];
+                                            $_attached_to    = $post["id"];
+                                            $_attached_type  = "post";
+                                            $_parent_id      = isset($comment["parent"]["id"]) ? $comment["parent"]["id"] : null;
+                                            $_user_id        = $comment["from"]["id"];
+                                            $_created_time   = dbDateTime($comment["created_time"]);
+                                            $_message        = $comment["message"] ? $comment["message"] : null;
+                                            mysqli_stmt_execute($dbComment);
+                                            $uids[$_user_id] = $comment["from"]["name"];
+                                            $commentCount++;
+
+                                            if (isset($comment["attachment"]["media"]))
+                                            {
+                                                switch ($comment["attachment"]["type"])
+                                                {
+                                                    case "photo":
+
+                                                        $_photo_id       = $comment["attachment"]["target"]["id"];
+                                                        $_attached_to    = $comment["id"];
+                                                        $_attached_type  = "comment";
+                                                        $_album_id       = null;
+                                                        $_owner_id       = $comment["from"]["id"];
+                                                        $_height         = $comment["attachment"]["media"]["image"]["height"];
+                                                        $_width          = $comment["attachment"]["media"]["image"]["width"];
+                                                        $_src            = $comment["attachment"]["media"]["image"]["src"];
+                                                        $_src_ext        = getExt($comment["attachment"]["media"]["image"]["src"]);
+                                                        $_caption        = null;
+                                                        $_permalink      = $comment["attachment"]["url"];
+                                                        mysqli_stmt_execute($dbPhoto);
+                                                        $pids[] = $_photo_id;
+                                                        $photoCount++;
+
+                                                        break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (isset($post["comments"]["paging"]["next"]))
+                                    {
+                                        $post["comments"] = getGraphPage($fb, $post["comments"]["paging"]["next"]);
+                                    }
+                                    else
+                                    {
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -300,6 +353,12 @@ if (isset($_POST["gid"]))
                     }
 
                     //$albums = $fb->api("/$gid?fields=albums");
+                    foreach ($uids as $uid => $name)
+                    {
+                        $_user_id  = $uid;
+                        $_name     = $name ? $name : null;
+                        mysqli_stmt_execute($dbUser);
+                    }
                 }
             }
             catch (FacebookApiException $e)
