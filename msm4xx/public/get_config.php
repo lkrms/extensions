@@ -23,22 +23,30 @@ foreach ($MSM4XX_AP as $name => $config)
         }
 
         $substitutions = array(
-    "{:NAME:}"          => $name,
-    "{:SERIAL:}"        => $config["serial"],
-    "{:FREQUENCY:}"     => $MSM4XX_FREQ[$config["channel"]],
-    "{:PHY_TYPE:}"      => $config["channel"] <= 13 ? "ieee802.11n-2ghz-bg-compatible" : "ieee802.11n-5ghz-a-compatible",
-    "{:CONFIG_TIME:}"   => sprintf("%02d:%02d", rand(2, 3), rand(0, 59)),
-    "{:CONFIG_URL:}"    => MSM4XX_CONFIG_URL . "?mac={$mac}&secret={$secret}",
-    "{:FIRMWARE_TIME:}" => sprintf("%02d:%02d", rand(0, 1), rand(0, 59)),
-    "{:FIRMWARE_URL:}"  => MSM4XX_FIRMWARE_URL . $config["model"] . ".cim",
-    "{:CHANNEL_TIME:}"  => sprintf("%02d:%02d", rand(4, 5), rand(0, 59)),
+    "{:NAME:}"           => $name,
+    "{:SERIAL:}"         => $config["serial"],
+    "{:FREQUENCY:}"      => $MSM4XX_FREQ[$config["channel"]],
+    "{:PHY_TYPE:}"       => $config["channel"] <= 13 ? "ieee802.11n-2ghz-bg-compatible" : "ieee802.11n-5ghz-a-compatible",
+    "{:CHANNEL_WIDTH:}"  => $config["channel"] <= 13 ? "20MHz" : "auto",
+    "{:GUARD_INTERVAL:}" => $config["channel"] <= 13 ? "long" : "short",
+    "{:SENSITIVITY:}"    => "2";
+    "{:POWER:}"          => "MAX";
+    "{:CONFIG_TIME:}"    => sprintf("%02d:%02d", rand(2, 3), rand(0, 59)),
+    "{:CONFIG_URL:}"     => MSM4XX_CONFIG_URL . "?mac={$mac}&secret={$secret}",
+    "{:FIRMWARE_TIME:}"  => sprintf("%02d:%02d", rand(0, 1), rand(0, 59)),
+    "{:FIRMWARE_URL:}"   => MSM4XX_FIRMWARE_URL . $config["model"] . ".cim",
+    "{:CHANNEL_TIME:}"   => sprintf("%02d:%02d", rand(4, 5), rand(0, 59)),
 );
 
         // if this is a 2-radio WAP, add the second channel frequency
         if (isset($config["channel2"]))
         {
-            $substitutions["{:FREQUENCY2:}"]  = $MSM4XX_FREQ[$config["channel2"]];
-            $substitutions["{:PHY_TYPE2:}"]   = $config["channel2"] <= 13 ? "ieee802.11bg" : "ieee802.11a";
+            $substitutions["{:FREQUENCY2:}"]       = $MSM4XX_FREQ[$config["channel2"]];
+            $substitutions["{:PHY_TYPE2:}"]        = $config["channel2"] <= 13 ? "ieee802.11g" : "ieee802.11a";
+            $substitutions["{:CHANNEL_WIDTH2:}"]   = $config["channel2"] <= 13 ? "20MHz" : "auto";
+            $substitutions["{:GUARD_INTERVAL2:}"]  = $config["channel2"] <= 13 ? "long" : "short";
+            $substitutions["{:SENSITIVITY2:}"]     = "2";
+            $substitutions["{:POWER2:}"]           = "MAX";
         }
 
         // load our template file
