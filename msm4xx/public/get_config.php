@@ -29,8 +29,8 @@ foreach ($MSM4XX_AP as $name => $config)
     "{:PHY_TYPE:}"       => $config["channel"] <= 13 ? "ieee802.11n-2ghz-bg-compatible" : "ieee802.11n-5ghz-a-compatible",
     "{:CHANNEL_WIDTH:}"  => $config["channel"] <= 13 ? "20MHz" : "auto",
     "{:GUARD_INTERVAL:}" => $config["channel"] <= 13 ? "long" : "short",
-    "{:SENSITIVITY:}"    => "2";
-    "{:POWER:}"          => "MAX";
+    "{:SENSITIVITY:}"    => "2",
+    "{:POWER:}"          => "MAX",
     "{:CONFIG_TIME:}"    => sprintf("%02d:%02d", rand(2, 3), rand(0, 59)),
     "{:CONFIG_URL:}"     => MSM4XX_CONFIG_URL . "?mac={$mac}&secret={$secret}",
     "{:FIRMWARE_TIME:}"  => sprintf("%02d:%02d", rand(0, 1), rand(0, 59)),
