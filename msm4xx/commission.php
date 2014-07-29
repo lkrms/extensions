@@ -9,9 +9,9 @@ if (php_sapi_name() != "cli")
 // pull in our settings
 require_once (dirname(__file__) . "/config.php");
 
-if ($argc != 2 || ! isset($MSM4XX_AP[$apName = $argv[1]]))
+if ($argc < 2 || $argc > 3 || ! isset($MSM4XX_AP[$apName = $argv[1]]))
 {
-    exit ("Usage: commission.php <AP_NAME>");
+    exit ("Usage: commission.php <AP_NAME> [skipwait]");
 }
 
 $ap           = $MSM4XX_AP[$apName];
@@ -22,9 +22,12 @@ $configUrl    = MSM4XX_CONFIG_URL . "?mac={$mac}&secret={$secret}";
 $firmwareUrl  = MSM4XX_FIRMWARE_URL . $ap["model"] . ".cim";
 $pw           = MSM4XX_ADMIN_PASSWORD;
 
-// let's assume the AP was factory reset 0.2 seconds ago ;)
-echo "Waiting 120 seconds (in case the AP hasn't booted yet)...\n";
-sleep(120);
+if ($argc < 3 || $argv[2] != "skipwait")
+{
+    // let's assume the AP was factory reset 0.2 seconds ago ;)
+    echo "Waiting 120 seconds (in case the AP hasn't booted yet)...\n";
+    sleep(120);
+}
 
 // factory-reset APs boot in managed mode
 echo "Switching operational mode (to autonomous)...\n";
