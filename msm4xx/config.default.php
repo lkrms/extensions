@@ -2,6 +2,7 @@
 
 define("MSM4XX_CONFIG_URL", "http://mydomain.local/msm4xx/get_config.php");
 define("MSM4XX_FIRMWARE_URL", "http://mydomain.local/msm4xx/firmware/");
+define("MSM4XX_ADMIN_PASSWORD", "standard_password_for_all_APs");
 
 // required: model, serial, mac, ip, secret, channel (available channels below)
 // required for dual-antenna models: channel2
