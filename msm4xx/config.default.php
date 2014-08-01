@@ -6,6 +6,8 @@ define("MSM4XX_ADMIN_PASSWORD", "standard_password_for_all_APs");
 
 // required: model, serial, mac, ip, secret, channel (available channels below)
 // required for dual-antenna models: channel2
+// optional: distance (large, medium, small), power
+// optional for dual-antenna models: distance2, power2
 $MSM4XX_AP = array(
     "WAP1"        => array(
         "model"   => "msm410",
@@ -48,6 +50,13 @@ $MSM4XX_FREQ = array(
     153 => "5.765GHz",
     157 => "5.785GHz",
     161 => "5.805GHz",
+);
+
+// maps "distance" to "sensitivity"
+$MSM4XX_SENSITIVITY = array(
+    "large"  => "1",
+    "medium" => "2",
+    "small"  => "3"
 );
 
 ?>
