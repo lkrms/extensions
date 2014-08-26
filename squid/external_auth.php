@@ -5,17 +5,6 @@ define("SQUID_ROOT", dirname(__file__));
 require_once (SQUID_ROOT . "/common.php");
 error_reporting(0);
 
-function writeLog($message, $verbose = false)
-{
-    global $pid;
-
-    if (( ! $verbose || SQUID_LOG_VERBOSE) && SQUID_LOG_FILE)
-    {
-        // let echo handle file locking - PHP streams not suited to this
-        shell_exec("echo \"[" . date("r") . "] #$pid: $message\" >> \"" . SQUID_LOG_FILE . "\"");
-    }
-}
-
 function writeReply($reply)
 {
     global $count, $time, $requestStart, $requestEnd;
@@ -101,7 +90,6 @@ function cleanUp()
     }
 }
 
-$pid    = getmypid();
 $start  = microtime(true);
 $count  = 0;
 $time   = 0;

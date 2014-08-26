@@ -1,4 +1,4 @@
-CREATE TABLE `auth_sessions` (
+CREATE TABLE IF NOT EXISTS `auth_sessions` (
   `session_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `username` varchar(20) NOT NULL DEFAULT '',
   `mac_address` char(17) NOT NULL DEFAULT '',
@@ -8,3 +8,13 @@ CREATE TABLE `auth_sessions` (
   PRIMARY KEY (`session_id`),
   KEY `username` (`username`,`mac_address`,`ip_address`,`expiry_time_utc`)
 );
+
+CREATE TABLE IF NOT EXISTS `user_devices` (
+  `line_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `server_name` varchar(10) NOT NULL DEFAULT '',
+  `mac_address` char(17) NOT NULL DEFAULT '',
+  `username` varchar(20) NOT NULL DEFAULT '',
+  PRIMARY KEY (`line_id`),
+  KEY `server_name` (`server_name`,`mac_address`)
+);
+

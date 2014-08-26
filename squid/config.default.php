@@ -6,7 +6,7 @@ define("SQUID_AUTH_TITLE", "My Squid Authenticator");
 // where to direct users if something breaks
 define("SQUID_SUPPORT_URL", "http://helpdesk.mydomain.local/");
 
-// where to send users if the authentication portal can't find a referer
+// where to send users if the authentication portal can't find a usable referer
 define("SQUID_DEFAULT_REDIRECT", "http://www.mydomain.com/");
 
 // how many seconds to wait for MySQL / Profile Manager / LDAP connections
@@ -38,39 +38,36 @@ $SQUID_LDAP_GROUP_DN = array(
     "my_group" => "CN=My Group,OU=Groups,DC=mydomain,DC=local"
 );
 
-// BYOD database credentials (MySQL)
-define("SQUID_BYOD_DB_SERVER", "localhost");
-define("SQUID_BYOD_DB_NAME", "squid_byod");
-define("SQUID_BYOD_DB_USERNAME", "squid");
-define("SQUID_BYOD_DB_PASSWORD", "PASSWORD");
-define("SQUID_BYOD_SESSION_DURATION", "01:00");
+// database credentials (MySQL)
+define("SQUID_DB_SERVER", "localhost");
+define("SQUID_DB_NAME", "squid");
+define("SQUID_DB_USERNAME", "squid");
+define("SQUID_DB_PASSWORD", "PASSWORD");
+define("SQUID_DEFAULT_SESSION_DURATION", "01:00");
 
-// set to FALSE if you don't want to use Profile Manager device records for transparent authentication
-define("SQUID_PROFILE_MANAGER_ENABLED", true);
+// any number of Profile Manager instances may be defined here
+$SQUID_PM_DB = array(
 
-// Profile Manager database credentials (PostgreSQL)
-define("SQUID_PM_DB_SERVER", "OSX001");
-define("SQUID_PM_DB_PORT", "5432");
-define("SQUID_PM_DB_NAME", "devicemgr_v2m0");    // device_management under OS X Server 2.0
-define("SQUID_PM_DB_USERNAME", "squid");
-define("SQUID_PM_DB_PASSWORD", "PASSWORD");
+    // keys must be globally unique and <=10 characters in length
+    "PM_OSX001" => array(
 
-// set to TRUE if you want to use a second Profile Manager instance (if no matching device records are found in the first)
-define("SQUID_ALT_PROFILE_MANAGER_ENABLED", false);
+        // PostgreSQL credentials (read-only permission is fine)
+        "SERVER"   => "OSX001",
+        "PORT"     => "5432",
+        "NAME"     => "devicemgr_v2m0",    // device_management under OS X Server 2.0
+        "USERNAME" => "squid",
+        "PASSWORD" => "PASSWORD",
 
-// alternate Profile Manager database credentials (PostgreSQL)
-define("SQUID_ALT_PM_DB_SERVER", "OSX002");
-define("SQUID_ALT_PM_DB_PORT", "5432");
-define("SQUID_ALT_PM_DB_NAME", "devicemgr_v2m0");
-define("SQUID_ALT_PM_DB_USERNAME", "squid");
-define("SQUID_ALT_PM_DB_PASSWORD", "PASSWORD");
-
-// change these settings if you want alternate Profile Manager records checked against an alternate LDAP server
-define("SQUID_ALT_LDAP_SERVER", SQUID_LDAP_SERVER);
-define("SQUID_ALT_LDAP_USER_DN", SQUID_LDAP_USER_DN);
-define("SQUID_ALT_LDAP_USER_PW", SQUID_LDAP_USER_PW);
-define("SQUID_ALT_LDAP_BASE_DN", SQUID_LDAP_BASE_DN);
-$SQUID_ALT_LDAP_GROUP_DN = $SQUID_LDAP_GROUP_DN;
+        // optional; provide if this Profile Manager's records should be checked against a particular LDAP server
+        "LDAP"         => array(
+            "SERVER"   => SQUID_LDAP_SERVER,
+            "USER_DN"  => SQUID_LDAP_USER_DN,
+            "USER_PW"  => SQUID_LDAP_USER_PW,
+            "BASE_DN"  => SQUID_LDAP_BASE_DN,
+            "GROUP_DN" => $SQUID_LDAP_GROUP_DN
+        )
+    )
+);
 
 // where to log stuff and things
 define("SQUID_LOG_FILE", "/var/log/squid3/external_acl.log");
