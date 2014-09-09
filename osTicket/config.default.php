@@ -36,4 +36,7 @@ $OST_WEEKEND_DAYS = array(
     6    // Saturday
 );
 
+// SQL queries to run every 5 minutes
+$OST_CRON_QUERIES = array();
+
 ?>
