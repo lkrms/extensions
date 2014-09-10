@@ -37,6 +37,8 @@ function writeLog($message, $verbose = false)
 
 function getUserGroups($username, $checkEnabled = true, $ldapServer = SQUID_LDAP_SERVER, $ldapUser = SQUID_LDAP_USER_DN, $ldapPassword = SQUID_LDAP_USER_PW, $ldapBase = SQUID_LDAP_BASE_DN)
 {
+    global $ad;
+
     if (($ad = ldap_connect($ldapServer)) === false)
     {
         return false;

@@ -43,6 +43,8 @@ function checkCache($ip, $mac, $group)
 
         if ($un !== false)
         {
+            writeLog("Retrieved from cache: $key => " . ($un ? $un : "NOT AUTHORISED"), true);
+
             if ( ! is_null($un))
             {
                 writeReply("OK user=$un");
@@ -51,8 +53,6 @@ function checkCache($ip, $mac, $group)
             {
                 writeReply("ERR");
             }
-
-            writeLog("Retrieved from cache: $key => " . ($un ? $un : "NOT AUTHORISED"), true);
 
             return true;
         }
@@ -63,24 +63,12 @@ function checkCache($ip, $mac, $group)
 
 function cleanUp()
 {
-    global $ad, $pconn, $pconn2, $mconn;
+    global $ad, $mconn;
 
     if (isset($ad))
     {
         ldap_unbind($ad);
         unset($GLOBALS["ad"]);
-    }
-
-    if (isset($pconn))
-    {
-        pg_close($pconn);
-        unset($GLOBALS["pconn"]);
-    }
-
-    if (isset($pconn2))
-    {
-        pg_close($pconn2);
-        unset($GLOBALS["pconn2"]);
     }
 
     if (isset($mconn))
@@ -93,16 +81,19 @@ function cleanUp()
 $start  = microtime(true);
 $count  = 0;
 $time   = 0;
-$pmcs   = "host=" . SQUID_PM_DB_SERVER . " port=" . SQUID_PM_DB_PORT . " dbname=" . SQUID_PM_DB_NAME . " user=" . SQUID_PM_DB_USERNAME . " password='" . addslashes(SQUID_PM_DB_PASSWORD) . "' connect_timeout=" . SQUID_CONNECT_TIMEOUT;
-$pmcs2  = "host=" . SQUID_ALT_PM_DB_SERVER . " port=" . SQUID_ALT_PM_DB_PORT . " dbname=" . SQUID_ALT_PM_DB_NAME . " user=" . SQUID_ALT_PM_DB_USERNAME . " password='" . addslashes(SQUID_ALT_PM_DB_PASSWORD) . "' connect_timeout=" . SQUID_CONNECT_TIMEOUT;
 
 // to minimise login latency, we do our own caching
-$mc = new Memcached();
+$mc = null;
 
-if ( ! $mc->addServer("localhost", 11211))
+if (class_exists("Memcached"))
 {
-    $mc = null;
-    writeLog("WARNING: unable to connect to Memcached server on localhost. Caching has been disabled. This will adversely affect performance.");
+    $mc = new Memcached();
+
+    if ( ! $mc->addServer("localhost", 11211))
+    {
+        $mc = null;
+        writeLog("WARNING: unable to connect to Memcached server on localhost. Caching has been disabled. This will adversely affect performance.");
+    }
 }
 
 while ( ! feof(STDIN))
@@ -173,9 +164,17 @@ while ( ! feof(STDIN))
         writeReply("OK");
 
         // cache accordingly if so
-        $input[1]     = substr($input[1], 2);
-        $virtualUser  = $input[1] == "VIRTUAL";
-        cacheResult($srcIP, $mac, $virtualUser ? "" : $input[1], $virtualUser ? (defined("SQUID_VIRTUAL_USER") ? SQUID_VIRTUAL_USER : "virtual") : null, $virtualUser ? SQUID_VIRTUAL_TTL : $ttl);
+        $input[1]  = substr($input[1], 2);
+        $un        = null;
+
+        if ($input[1] == "VIRTUAL")
+        {
+            $input[1]  = "";
+            $un        = defined("SQUID_VIRTUAL_USER") ? SQUID_VIRTUAL_USER : "virtual";
+            $ttl       = SQUID_VIRTUAL_TTL;
+        }
+
+        cacheResult($srcIP, $mac, $input[1], $un, $ttl);
 
         continue;
     }
@@ -185,196 +184,120 @@ while ( ! feof(STDIN))
         continue;
     }
 
-    // check for a match in BYOD database (i.e. fastest query first)
-    $mconn = mysqli_connect(SQUID_BYOD_DB_SERVER, SQUID_BYOD_DB_USERNAME, SQUID_BYOD_DB_PASSWORD, SQUID_BYOD_DB_NAME);
+    // check for a match in device / session database
+    $mconn = mysqli_connect(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_DB_NAME);
 
     if ( ! mysqli_connect_error())
     {
-        $rs = mysqli_query($mconn, "select username, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), expiry_time_utc) as ttl from auth_sessions where mac_address = '$mac' and ip_address = '$srcIP' and expiry_time_utc > UTC_TIMESTAMP()");
+        $un            = null;
+        $ldapServer    = SQUID_LDAP_SERVER;
+        $ldapUser      = SQUID_LDAP_USER_DN;
+        $ldapPassword  = SQUID_LDAP_USER_PW;
+        $ldapBase      = SQUID_LDAP_BASE_DN;
+        $ldapGroups    = $SQUID_LDAP_GROUP_DN;
 
-        if ($rs && ($row = $rs->fetch_row()))
+        // try devices table first
+        $servers = array_keys($SQUID_PM_DB);
+
+        if ($servers)
         {
-            // enforce the session expiry time
-            $ttl = $row[1] + 0;
+            $rs = mysqli_query($mconn, "select username, server_name from user_devices where mac_address = '$mac' and server_name in ('" . implode("', '", $servers) . "') order by line_id desc");
 
-            if ($ttl > SQUID_MAX_TTL)
+            if ($rs && ($row = $rs->fetch_row()))
             {
-                $ttl = SQUID_MAX_TTL;
+                $un      = $row[0];
+                $server  = $row[1];
+
+                if (isset($SQUID_PM_DB[$server]["LDAP"]))
+                {
+                    $ldapServer    = $SQUID_PM_DB[$server]["LDAP"]["SERVER"];
+                    $ldapUser      = $SQUID_PM_DB[$server]["LDAP"]["USER_DN"];
+                    $ldapPassword  = $SQUID_PM_DB[$server]["LDAP"]["USER_PW"];
+                    $ldapBase      = $SQUID_PM_DB[$server]["LDAP"]["BASE_DN"];
+                    $ldapGroups    = $SQUID_PM_DB[$server]["LDAP"]["GROUP_DN"];
+                }
+            }
+        }
+
+        // next, ad-hoc sessions
+        if ( ! $un)
+        {
+            $rs = mysqli_query($mconn, "select username, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), expiry_time_utc) as ttl from auth_sessions where mac_address = '$mac' and ip_address = '$srcIP' and expiry_time_utc > UTC_TIMESTAMP()");
+
+            if ($rs && ($row = $rs->fetch_row()))
+            {
+                $un = $row[0];
+
+                // enforce the session expiry time
+                $ttl = $row[1] + 0;
+            }
+        }
+
+        if ( ! $un)
+        {
+            writeReply("ERR");
+
+            // negative cache TTL is 5 seconds
+            cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", null, 5);
+
+            continue;
+        }
+
+        if ($ttl > SQUID_MAX_TTL)
+        {
+            $ttl = SQUID_MAX_TTL;
+        }
+
+        $userGroups = getUserGroups($un, true, $ldapServer, $ldapUser, $ldapPassword, $ldapBase);
+
+        if ($userGroups === false)
+        {
+            // this could indicate a disabled account or an LDAP error
+            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve groups for '$un'.\"");
+            cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", null, 10);
+
+            continue;
+        }
+
+        if ( ! isset($input[1]))
+        {
+            writeReply("OK user=$un");
+            cacheResult($srcIP, $mac, "", $un, $ttl);
+
+            continue;
+        }
+        else
+        {
+            if ( ! isset($ldapGroups[$input[1]]))
+            {
+                writeReply(SQUID_FAILURE_CODE . " message=\"No matching group DN found for '$input[1]'.\"");
+                cacheResult($srcIP, $mac, $input[1], null, SQUID_MAX_TTL);
+
+                continue;
             }
 
-            if ( ! isset($input[1]))
+            if (in_array($ldapGroups[$input[1]], $userGroups))
             {
-                writeReply("OK user=$row[0]");
-                cacheResult($srcIP, $mac, "", $row[0], $ttl);
+                writeReply("OK user=$un");
+                cacheResult($srcIP, $mac, $input[1], $un, $ttl);
 
                 continue;
             }
             else
             {
-                if ( ! isset($SQUID_LDAP_GROUP_DN[$input[1]]))
-                {
-                    writeReply(SQUID_FAILURE_CODE . " message=\"No matching group DN found for '$input[1]'.\"");
-                    cacheResult($srcIP, $mac, $input[1], null, SQUID_MAX_TTL);
+                writeReply("ERR");
+                cacheResult($srcIP, $mac, $input[1], null, $ttl);
 
-                    continue;
-                }
-
-                if (($ad = ldap_connect(SQUID_LDAP_SERVER)) !== false && ldap_bind($ad, SQUID_LDAP_USER_DN, SQUID_LDAP_USER_PW))
-                {
-                    $query  = "(&(sAMAccountName=$row[0])(memberOf:1.2.840.113556.1.4.1941:=" . $SQUID_LDAP_GROUP_DN[$input[1]] . "))";
-                    $ls     = ldap_search($ad, SQUID_LDAP_BASE_DN, $query, array("sAMAccountName"), 0, 0, SQUID_CONNECT_TIMEOUT);
-
-                    if ($ls === false || ($r = ldap_get_entries($ad, $ls)) === false)
-                    {
-                        writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from LDAP server.\"");
-
-                        continue;
-                    }
-
-                    if (isset($r[0]["samaccountname"][0]))
-                    {
-                        writeReply("OK user=$row[0]");
-                        cacheResult($srcIP, $mac, $input[1], $row[0], $ttl);
-
-                        continue;
-                    }
-                    else
-                    {
-                        writeReply("ERR");
-                        cacheResult($srcIP, $mac, $input[1], null, $ttl);
-
-                        continue;
-                    }
-                }
-                else
-                {
-                    writeReply(SQUID_FAILURE_CODE . " message=\"Unable to bind to LDAP server.\"");
-
-                    continue;
-                }
+                continue;
             }
         }
     }
-
-    if (SQUID_PROFILE_MANAGER_ENABLED)
+    else
     {
-        // connect to Profile Manager database
-        if (($pconn = pg_connect($pmcs)) === false || pg_prepare($pconn, "get_user_GUID", "SELECT users.guid FROM devices inner join users on devices.user_id = users.id WHERE lower(\"WiFiMAC\") = \$1") === false)
-        {
-            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to connect to Profile Manager database.\"");
+        writeReply(SQUID_FAILURE_CODE . " message=\"Unable to connect to MySQL database.\"");
 
-            continue;
-        }
-
-        $adServer   = SQUID_LDAP_SERVER;
-        $adUserDN   = SQUID_LDAP_USER_DN;
-        $adUserPW   = SQUID_LDAP_USER_PW;
-        $adBaseDN   = SQUID_LDAP_BASE_DN;
-        $adGroupDN  = $SQUID_LDAP_GROUP_DN;
-
-        // check for a matching GUID
-        if (($result = pg_execute($pconn, "get_user_GUID", array($mac))) === false)
-        {
-            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from Profile Manager database.\"");
-
-            continue;
-        }
-
-        $guid = pg_fetch_row($result);
-
-        // if no matching GUID was found and an alternate Profile Manager database has been configured, try the same query on it
-        if ($guid === false && SQUID_ALT_PROFILE_MANAGER_ENABLED)
-        {
-            // connect to alternate Profile Manager database
-            if (($pconn2 = pg_connect($pmcs2)) === false || pg_prepare($pconn2, "get_user_GUID", "SELECT users.guid FROM devices inner join users on devices.user_id = users.id WHERE lower(\"WiFiMAC\") = \$1") === false)
-            {
-                writeReply(SQUID_FAILURE_CODE . " message=\"Unable to connect to alternate Profile Manager database.\"");
-
-                continue;
-            }
-
-            if (($result = pg_execute($pconn2, "get_user_GUID", array($mac))) === false)
-            {
-                writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from alternate Profile Manager database.\"");
-
-                continue;
-            }
-
-            $guid = pg_fetch_row($result);
-
-            // use alternate LDAP credentials
-            $adServer   = SQUID_ALT_LDAP_SERVER;
-            $adUserDN   = SQUID_ALT_LDAP_USER_DN;
-            $adUserPW   = SQUID_ALT_LDAP_USER_PW;
-            $adBaseDN   = SQUID_ALT_LDAP_BASE_DN;
-            $adGroupDN  = $SQUID_ALT_LDAP_GROUP_DN;
-        }
-
-        if ($guid !== false)
-        {
-            // bind to LDAP server
-            if (($ad = ldap_connect($adServer)) === false || ! ldap_bind($ad, $adUserDN, $adUserPW))
-            {
-                writeReply(SQUID_FAILURE_CODE . " message=\"Unable to bind to LDAP server.\"");
-
-                continue;
-            }
-
-            // we have our GUID - now to search for a match in LDAP (but first we'll need to re-format the GUID)
-            $guid     = str_replace("-", "", $guid[0]);
-            $guid     = str_split($guid, 2);
-            $bytes    = array();
-            $bytes[]  = $guid[3];
-            $bytes[]  = $guid[2];
-            $bytes[]  = $guid[1];
-            $bytes[]  = $guid[0];
-            $bytes[]  = $guid[5];
-            $bytes[]  = $guid[4];
-            $bytes[]  = $guid[7];
-            $bytes[]  = $guid[6];
-            $bytes    = array_merge($bytes, array_slice($guid, 8));
-            $guid     = "\\" . implode("\\", $bytes);
-            $query    = "(objectGUID=$guid)";
-
-            if (isset($input[1]))
-            {
-                if (isset($adGroupDN[$input[1]]))
-                {
-                    // this is a special memberOf query that checks membership recursively (may only work on Active Directory)
-                    $query = "(&(objectGUID=$guid)(memberOf:1.2.840.113556.1.4.1941:=" . $adGroupDN[$input[1]] . "))";
-                }
-                else
-                {
-                    writeReply(SQUID_FAILURE_CODE . " message=\"No matching group DN found for '$input[1]'.\"");
-                    cacheResult($srcIP, $mac, $input[1], null, SQUID_MAX_TTL);
-
-                    continue;
-                }
-            }
-
-            $ls = ldap_search($ad, $adBaseDN, $query, array("sAMAccountName"), 0, 0, SQUID_CONNECT_TIMEOUT);
-
-            if ($ls === false || ($r = ldap_get_entries($ad, $ls)) === false)
-            {
-                writeReply(SQUID_FAILURE_CODE . " message=\"Unable to retrieve data from LDAP server.\"");
-
-                continue;
-            }
-
-            // finally, we have our username!
-            if (isset($r[0]["samaccountname"][0]))
-            {
-                $username = $r[0]["samaccountname"][0];
-                writeReply("OK user=$username");
-                cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", $username, $ttl);
-
-                continue;
-            }
-        }
+        continue;
     }
-
-    writeReply("ERR");
-    cacheResult($srcIP, $mac, isset($input[1]) ? $input[1] : "", null, 10);
 }
 
 writeLog("$count requests processed, average processing time " . ($count ? $time / $count : 0) . "s");

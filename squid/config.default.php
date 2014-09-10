@@ -24,7 +24,7 @@ define("SQUID_VIRTUAL_TTL", 3600);
 define("SQUID_LDAP_SERVER", "DC01");
 define("SQUID_LDAP_USER_DN", "CN=Squid,OU=Users,DC=mydomain,DC=local");
 define("SQUID_LDAP_USER_PW", "PASSWORD");
-define("SQUID_LDAP_BASE_DN", "OU=Users,DC=mydomain,DC=local");
+define("SQUID_LDAP_BASE_DN", "DC=mydomain,DC=local");
 
 // regular expressions for username/password validation (prior to LDAP binding) - ignored if empty
 define("SQUID_LDAP_USERNAME_REGEX", '/^[a-z]+[\\.a-z]+$/i');
