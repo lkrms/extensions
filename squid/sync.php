@@ -50,11 +50,18 @@ foreach ($SQUID_PM_DB as $pmId => $pmDb)
         continue;
     }
 
+    $targetTypes = array("ios", "mac");
+
+    if (isset($pmDb["TARGET_TYPES"]))
+    {
+        $targetTypes = $pmDb["TARGET_TYPES"];
+    }
+
     // limit ourselves to iOS devices, with recent checkins, that aren't placeholders
     $prs = pg_query($pconn, "SELECT devices.\"WiFiMAC\", users.short_name
 FROM devices
 	INNER JOIN users ON devices.user_id = users.id
-WHERE devices.mdm_target_type = 'ios'
+WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
 	AND devices.token IS NOT NULL
 	AND devices.last_checkin_time >= NOW() AT TIME ZONE 'UTC' - INTERVAL '5 days'");
 
@@ -123,7 +130,7 @@ WHERE devices.mdm_target_type = 'ios'
     }
 }
 
-echo "Added: $added; deleted: $deleted";
+writeLog("Added: $added; deleted: $deleted");
 
 // PRETTY_NESTED_ARRAYS,0
 
