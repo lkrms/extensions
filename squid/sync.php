@@ -22,6 +22,11 @@ $added    = 0;
 
 foreach ($SQUID_PM_DB as $pmId => $pmDb)
 {
+    if (isset($pmDb["NO_SYNC"]) && $pmDb["NO_SYNC"])
+    {
+        continue;
+    }
+
     // retrieve cached device records
     $rs = mysqli_query($conn, "SELECT line_id, mac_address, username FROM user_devices WHERE server_name = '" . mysqli_real_escape_string($conn, $pmId) . "'");
 
