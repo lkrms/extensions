@@ -9,6 +9,29 @@ function getPgConnectionString($server, $port, $name, $username, $password)
     return "host=$server port=$port dbname=$name user=$username password='" . addslashes($password) . "' connect_timeout=" . SQUID_CONNECT_TIMEOUT;
 }
 
+function processRecord($mac, $un)
+{
+    global $macs, $toDelete, $toAdd;
+
+    if (in_array($mac, $macs))
+    {
+        // Profile Manager databases are defined in descending order of priority
+        return;
+    }
+
+    $macs[]  = $mac;
+    $lineId  = array_search( array($mac, $un), $toDelete);
+
+    if ($lineId === false)
+    {
+        $toAdd[] = array($mac, $un);
+    }
+    else
+    {
+        unset($toDelete[$lineId]);
+    }
+}
+
 $conn = new mysqli(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_DB_NAME);
 
 if (mysqli_connect_error())
@@ -62,8 +85,8 @@ foreach ($SQUID_PM_DB as $pmId => $pmDb)
         $targetTypes = $pmDb["TARGET_TYPES"];
     }
 
-    // limit ourselves to iOS devices, with recent checkins, that aren't placeholders
-    $prs = pg_query($pconn, "SELECT devices.\"WiFiMAC\", users.short_name
+    // limit ourselves to devices with recent checkins that aren't placeholders
+    $prs = pg_query($pconn, "SELECT devices.\"WiFiMAC\", devices.\"EthernetMAC\", devices.\"ProductName\", users.short_name
 FROM devices
 	INNER JOIN users ON devices.user_id = users.id
 WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
@@ -72,31 +95,25 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
 
     if ($prs === false)
     {
-        // TODO: same here
+        // TODO: add log entry / email notification here
         continue;
     }
 
     while ($row = pg_fetch_row($prs))
     {
-        $mac  = strtolower(trim($row[0]));
-        $un   = trim($row[1]);
+        $mac   = strtolower(trim($row[0]));
+        $mac2  = strtolower(trim($row[1]));
+        $pn    = strtolower(trim($row[2]));
+        $un    = trim($row[3]);
 
-        if (in_array($mac, $macs))
+        if ($mac)
         {
-            // Profile Manager databases are defined in descending order of priority
-            continue;
+            processRecord($mac, $un);
         }
 
-        $macs[]  = $mac;
-        $lineId  = array_search( array($mac, $un), $toDelete);
-
-        if ($lineId === false)
+        if ($mac2 && preg_match("/^(macmini|imac)/", $pn))
         {
-            $toAdd[] = array($mac, $un);
-        }
-        else
-        {
-            unset($toDelete[$lineId]);
+            processRecord($mac2, $un);
         }
     }
 
