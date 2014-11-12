@@ -15,10 +15,11 @@ function _post($name, $default = "")
     }
 }
 
-$isPost    = $_SERVER["REQUEST_METHOD"] == "POST";
-$isSecure  = ! empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] != "off";
-$loggedIn  = false;
-$un        = "visitor";
+$isPost     = $_SERVER["REQUEST_METHOD"] == "POST";
+$isSecure   = ! empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] != "off";
+$loggedIn   = false;
+$un         = "visitor";
+$pingFirst  = false;
 
 // enforce a secure connection
 if ( ! $isSecure && ! isset($_GET["nossl"]))
@@ -59,7 +60,15 @@ elseif (isset($_SERVER["HTTP_X_FORWARDED_FOR"]))
     $srcIP = $_SERVER["HTTP_X_FORWARDED_FOR"];
 }
 
-if (is_array($SQUID_ILLEGAL_IP) && in_array(trim($srcIP), $SQUID_ILLEGAL_IP))
+if ($srcIP != $_SERVER["REMOTE_ADDR"])
+{
+    $pingFirst  = true;
+    $srcIP      = array_pop(explode(",", $srcIP));
+}
+
+$srcIP = trim($srcIP);
+
+if (is_array($SQUID_ILLEGAL_IP) && in_array($srcIP, $SQUID_ILLEGAL_IP))
 {
     if ( ! $isSecure)
     {
@@ -77,6 +86,12 @@ if (is_array($SQUID_ILLEGAL_IP) && in_array(trim($srcIP), $SQUID_ILLEGAL_IP))
         header("Location: http://{$_SERVER[SERVER_NAME]}{$_SERVER[PHP_SELF]}?{$queryString}");
         exit;
     }
+}
+
+// force population of ARP table
+if ($pingFirst)
+{
+    shell_exec("ping -c 1 $srcIP");
 }
 
 $arp      = shell_exec(SQUID_ARP_PATH . " -n $srcIP");
