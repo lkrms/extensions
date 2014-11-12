@@ -3,7 +3,7 @@
 define("SQUID_ROOT", dirname(__file__) . "/..");
 require_once (SQUID_ROOT . "/common.php");
 
-function _get($name, $default = "")
+function _post($name, $default = "")
 {
     if (isset($_POST[$name]))
     {
@@ -15,9 +15,32 @@ function _get($name, $default = "")
     }
 }
 
+$isPost    = $_SERVER["REQUEST_METHOD"] == "POST";
+$isSecure  = ! empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] != "off";
 $loggedIn  = false;
 $un        = "visitor";
-$redirect  = _get("redirect", isset($_GET["r"]) ? $_GET["r"] : SQUID_DEFAULT_REDIRECT);
+
+// enforce a secure connection
+if ( ! $isSecure && ! isset($_GET["nossl"]))
+{
+    header("Location: https://{$_SERVER[SERVER_NAME]}{$_SERVER[REQUEST_URI]}");
+    exit;
+}
+
+$redirect = SQUID_DEFAULT_REDIRECT;
+
+if ( ! $isPost && isset($_GET["r"]))
+{
+    // ignore non-HTTP redirects
+    $port = parse_url($_GET["r"], PHP_URL_PORT);
+
+    if (is_null($port) || $port == 80)
+    {
+        $redirect = $_GET["r"];
+    }
+}
+
+$redirect = _post("redirect", $redirect);
 
 // determine the client's IP and MAC addresses
 $srcIP = $_SERVER["REMOTE_ADDR"];
@@ -31,10 +54,29 @@ if (function_exists("apache_request_headers"))
         $srcIP = $headers["X-Forwarded-For"];
     }
 }
+elseif (isset($_SERVER["HTTP_X_FORWARDED_FOR"]))
+{
+    $srcIP = $_SERVER["HTTP_X_FORWARDED_FOR"];
+}
 
 if (is_array($SQUID_ILLEGAL_IP) && in_array(trim($srcIP), $SQUID_ILLEGAL_IP))
 {
-    exit ("Unable to authenticate from your IP address. Have you added $_SERVER[SERVER_NAME] to your 'bypass proxy for these addresses' list?");
+    if ( ! $isSecure)
+    {
+        exit ("Unable to authenticate from your IP address. Have you added $_SERVER[SERVER_NAME] to your 'bypass proxy for these addresses' list?");
+    }
+    else
+    {
+        $queryString = "nossl=1";
+
+        if ($_SERVER["QUERY_STRING"])
+        {
+            $queryString .= "&" . $_SERVER["QUERY_STRING"];
+        }
+
+        header("Location: http://{$_SERVER[SERVER_NAME]}{$_SERVER[PHP_SELF]}?{$queryString}");
+        exit;
+    }
 }
 
 $arp      = shell_exec(SQUID_ARP_PATH . " -n $srcIP");
@@ -65,7 +107,7 @@ if (preg_match("/(([0-9a-f]{1,2}:){5}[0-9a-f]{1,2})/i", $arp, $matches))
 }
 else
 {
-    exit ("Unable to determine hardware address.");
+    exit ("Unable to determine your hardware address. Are you on the right network?");
 }
 
 // now, check for an active session in the database
@@ -87,22 +129,22 @@ if ($rs && ($row = $rs->fetch_row()))
 $errors    = array();
 $feedback  = "";
 
-if ( ! $loggedIn && $_SERVER["REQUEST_METHOD"] == "POST")
+if ( ! $loggedIn && $isPost)
 {
-    if (SQUID_LDAP_USERNAME_REGEX && ! preg_match(SQUID_LDAP_USERNAME_REGEX, _get("username")))
+    if (SQUID_LDAP_USERNAME_REGEX && ! preg_match(SQUID_LDAP_USERNAME_REGEX, _post("username")))
     {
         $errors[] = "Invalid username.";
     }
 
-    if (SQUID_LDAP_PASSWORD_REGEX && ! preg_match(SQUID_LDAP_PASSWORD_REGEX, _get("password")))
+    if (SQUID_LDAP_PASSWORD_REGEX && ! preg_match(SQUID_LDAP_PASSWORD_REGEX, _post("password")))
     {
         $errors[] = "Invalid password.";
     }
 
     if ( ! $errors)
     {
-        $un  = _get("username");
-        $pw  = _get("password");
+        $un  = _post("username");
+        $pw  = _post("password");
         $ad  = ldap_connect(SQUID_LDAP_SERVER);
 
         if ($ad !== false && @ldap_bind($ad, $un . SQUID_LDAP_USERNAME_APPEND, $pw))
@@ -163,6 +205,13 @@ if ( ! $loggedIn):
     <p>By logging in, you agree not to use this service for any inappropriate or illegal purpose.</p>
     <p>Need help? <a href="<?php echo SQUID_SUPPORT_URL; ?>">Click here for support.</a></p>
     <h3>User Login</h3>
+    <?php
+    if ( ! $isSecure):
+?>
+    <p style='color:#f00'>WARNING: your username and password will be sent over the network insecurely. To avoid this, add $_SERVER[SERVER_NAME] to your 'bypass proxy for these addresses' list.</p>
+    <?php
+    endif;
+?>
     <?php print "<form method=\"post\" action=\"$_SERVER[REQUEST_URI]\">"; ?>
     <input type="hidden" name="redirect" value="<?php echo htmlspecialchars($redirect); ?>">
     <p>Username: <input type="text" name="username" size="30" value="<?php echo htmlspecialchars($un); ?>"></p>
