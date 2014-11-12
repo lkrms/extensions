@@ -20,7 +20,17 @@ $un        = "visitor";
 $redirect  = _get("redirect", isset($_GET["r"]) ? $_GET["r"] : SQUID_DEFAULT_REDIRECT);
 
 // determine the client's IP and MAC addresses
-$srcIP    = $_SERVER["REMOTE_ADDR"];
+$headers = apache_request_headers();
+
+if (isset($headers["X-Forwarded-For"]))
+{
+    $srcIP = $headers["X-Forwarded-For"];
+}
+else
+{
+    $srcIP = $_SERVER["REMOTE_ADDR"];
+}
+
 $arp      = shell_exec(SQUID_ARP_PATH . " -n $srcIP");
 $mac      = "";
 $matches  = array();
