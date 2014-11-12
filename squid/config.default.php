@@ -3,6 +3,11 @@
 // what to call the authentication portal
 define("SQUID_AUTH_TITLE", "My Squid Authenticator");
 
+// you probably don't want to allow proxied authentication attempts, so add your proxy server's IP address here
+$SQUID_ILLEGAL_IP = array(
+    "127.0.0.1",
+);
+
 // where to direct users if something breaks
 define("SQUID_SUPPORT_URL", "http://helpdesk.mydomain.local/");
 

@@ -20,15 +20,21 @@ $un        = "visitor";
 $redirect  = _get("redirect", isset($_GET["r"]) ? $_GET["r"] : SQUID_DEFAULT_REDIRECT);
 
 // determine the client's IP and MAC addresses
-$headers = apache_request_headers();
+$srcIP = $_SERVER["REMOTE_ADDR"];
 
-if (isset($headers["X-Forwarded-For"]))
+if (function_exists("apache_request_headers"))
 {
-    $srcIP = $headers["X-Forwarded-For"];
+    $headers = apache_request_headers();
+
+    if (isset($headers["X-Forwarded-For"]))
+    {
+        $srcIP = $headers["X-Forwarded-For"];
+    }
 }
-else
+
+if (is_array($SQUID_ILLEGAL_IP) && in_array(trim($srcIP), $SQUID_ILLEGAL_IP))
 {
-    $srcIP = $_SERVER["REMOTE_ADDR"];
+    exit ("Unable to authenticate from your IP address. Have you added $_SERVER[SERVER_NAME] to your 'bypass proxy for these addresses' list?");
 }
 
 $arp      = shell_exec(SQUID_ARP_PATH . " -n $srcIP");
