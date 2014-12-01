@@ -201,7 +201,7 @@ while ( ! feof(STDIN))
 
         if ($servers)
         {
-            $rs = mysqli_query($mconn, "select username, server_name from user_devices where mac_address = '$mac' and server_name in ('" . implode("', '", $servers) . "') order by line_id desc");
+            $rs = mysqli_query($mconn, "select username, server_name from user_devices where mac_address = '$mac' and (server_name in ('" . implode("', '", $servers) . "') or server_name is null) order by line_id desc");
 
             if ($rs && ($row = $rs->fetch_row()))
             {

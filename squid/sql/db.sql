@@ -18,3 +18,9 @@ CREATE TABLE IF NOT EXISTS `user_devices` (
   KEY `server_name` (`server_name`,`mac_address`)
 );
 
+ALTER TABLE `user_devices`
+  CHANGE COLUMN `server_name` `server_name` varchar(10) DEFAULT NULL;
+
+ALTER TABLE `user_devices`
+  ADD COLUMN `auth_time_utc` datetime DEFAULT NULL;
+
