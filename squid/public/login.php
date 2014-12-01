@@ -15,11 +15,12 @@ function _post($name, $default = "")
     }
 }
 
-$isPost     = $_SERVER["REQUEST_METHOD"] == "POST";
-$isSecure   = ! empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] != "off";
-$loggedIn   = false;
-$un         = "visitor";
-$pingFirst  = false;
+$isPost            = $_SERVER["REQUEST_METHOD"] == "POST";
+$isSecure          = ! empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] != "off";
+$loggedIn          = false;
+$deviceRegistered  = false;
+$un                = "visitor";
+$pingFirst         = false;
 
 // enforce a secure connection
 if ( ! $isSecure && ! isset($_GET["nossl"]))
@@ -133,12 +134,24 @@ if (mysqli_connect_error())
     exit ("Unable to connect to session database. " . mysqli_connect_error());
 }
 
-$rs = $conn->query("select username from auth_sessions where mac_address = '$mac' and ip_address = '$srcIP' and expiry_time_utc > UTC_TIMESTAMP()");
+$servers  = array_keys($SQUID_PM_DB);
+$rs       = $conn->query("select username from user_devices where mac_address = '$mac' and " . ($servers ? "(server_name in ('" . implode("', '", $servers) . "') or server_name is null)" : "server_name is null"));
 
 if ($rs && ($row = $rs->fetch_row()))
 {
-    $loggedIn  = true;
-    $un        = $row[0];
+    $loggedIn          = true;
+    $deviceRegistered  = true;
+    $un                = $row[0];
+}
+else
+{
+    $rs = $conn->query("select username from auth_sessions where mac_address = '$mac' and ip_address = '$srcIP' and expiry_time_utc > UTC_TIMESTAMP()");
+
+    if ($rs && ($row = $rs->fetch_row()))
+    {
+        $loggedIn  = true;
+        $un        = $row[0];
+    }
 }
 
 $errors    = array();
@@ -158,9 +171,10 @@ if ( ! $loggedIn && $isPost)
 
     if ( ! $errors)
     {
-        $un  = _post("username");
-        $pw  = _post("password");
-        $ad  = ldap_connect(SQUID_LDAP_SERVER);
+        $un        = _post("username");
+        $pw        = _post("password");
+        $register  = _post("register_device") == 1;
+        $ad        = ldap_connect(SQUID_LDAP_SERVER);
 
         if ($ad !== false && @ldap_bind($ad, $un . SQUID_LDAP_USERNAME_APPEND, $pw))
         {
@@ -174,7 +188,7 @@ if ( ! $loggedIn && $isPost)
 
                 foreach ($SQUID_LDAP_GROUP_PERMISSIONS as $groupDN => $groupPermissions)
                 {
-                    if (in_array($groupDN, $groups) && $groupPermissions["ALLOW_SESSION"])
+                    if (in_array($groupDN, $groups) && (( ! $register && $groupPermissions["ALLOW_SESSION"]) || ($register && $groupPermissions["ALLOW_DEVICE_REGISTRATION"])))
                     {
                         $allowed = true;
 
@@ -188,10 +202,19 @@ if ( ! $loggedIn && $isPost)
 
             if ($allowed)
             {
-                // create a session record
-                if ($conn->query("insert into auth_sessions (username, mac_address, ip_address, auth_time_utc, expiry_time_utc) values ('" . $conn->escape_string($un) . "', '$mac', '$srcIP', UTC_TIMESTAMP(), ADDTIME(UTC_TIMESTAMP(), '$sessionTime'))") === false)
+                if ($register)
                 {
-                    $errors[] = "Unable to create session record in database.";
+                    $sql = "insert into user_devices (mac_address, username, auth_time_utc) values ('$mac', '" . $conn->escape_string($un) . "', UTC_TIMESTAMP())";
+                }
+                else
+                {
+                    $sql = "insert into auth_sessions (username, mac_address, ip_address, auth_time_utc, expiry_time_utc) values ('" . $conn->escape_string($un) . "', '$mac', '$srcIP', UTC_TIMESTAMP(), ADDTIME(UTC_TIMESTAMP(), '$sessionTime'))";
+                }
+
+                // create a session record
+                if ($conn->query($sql) === false)
+                {
+                    $errors[] = "Unable to create " . ($register ? "device" : "session") . " record in database.";
                 }
                 else
                 {
@@ -200,7 +223,7 @@ if ( ! $loggedIn && $isPost)
             }
             else
             {
-                $errors[] = "Your username and password are correct, but you're not authorised to log in using this service. <a href='" . SQUID_SUPPORT_URL . "'>Click here to request help with this issue.</a>";
+                $errors[] = "Your username and password are correct, but you're not authorised to " . ($register ? "register devices" : "log in") . " using this service. <a href='" . SQUID_SUPPORT_URL . "'>Click here to request help with this issue.</a>";
             }
         }
         else
@@ -258,6 +281,7 @@ if ( ! $loggedIn):
     <input type="hidden" name="redirect" value="<?php echo htmlspecialchars($redirect); ?>">
     <p>Username: <input type="text" name="username" size="30" value="<?php echo htmlspecialchars($un); ?>"></p>
     <p>Password: <input type="password" name="password" size="30"></p>
+    <p><input type="checkbox" name="register_device" value="1"> I&rsquo;m the only person with access to this device. Register my login permanently.</p>
     <p><input type="submit" name="submit" value="Login" /></p>
     <?php print "</form>";
 endif;
