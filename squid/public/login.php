@@ -170,7 +170,7 @@ if ( ! $loggedIn && $isPost)
             if ( ! empty($SQUID_LDAP_GROUP_PERMISSIONS))
             {
                 $allowed  = false;
-                $groups   = getUserGroups($un, true, $ad);
+                $groups   = getUserGroups($un, true, false);
 
                 foreach ($SQUID_LDAP_GROUP_PERMISSIONS as $groupDN => $groupPermissions)
                 {

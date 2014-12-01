@@ -248,7 +248,7 @@ while ( ! feof(STDIN))
             $ttl = SQUID_MAX_TTL;
         }
 
-        $userGroups = getUserGroups($un, true, null, $ldapServer, $ldapUser, $ldapPassword, $ldapBase);
+        $userGroups = getUserGroups($un, true, true, $ldapServer, $ldapUser, $ldapPassword, $ldapBase);
 
         if ($userGroups === false)
         {
