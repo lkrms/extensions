@@ -2,25 +2,10 @@
 
 define("SQUID_ROOT", dirname(__file__) . "/..");
 require_once (SQUID_ROOT . "/common.php");
-
-function _post($name, $default = "")
-{
-    if (isset($_POST[$name]))
-    {
-        return $_POST[$name];
-    }
-    else
-    {
-        return $default;
-    }
-}
-
-$isPost            = $_SERVER["REQUEST_METHOD"] == "POST";
-$isSecure          = ! empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] != "off";
 $loggedIn          = false;
 $deviceRegistered  = false;
-$un                = "visitor";
 $pingFirst         = false;
+$un                = "visitor";
 
 // enforce a secure connection
 if ( ! $isSecure && ! isset($_GET["nossl"]))
@@ -126,7 +111,7 @@ else
     exit ("Unable to determine your hardware address. Are you on the right network?");
 }
 
-// now, check for an active session in the database
+// now, check for a device record or active session in the database
 $conn = new mysqli(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_DB_NAME);
 
 if (mysqli_connect_error())
@@ -134,8 +119,10 @@ if (mysqli_connect_error())
     exit ("Unable to connect to session database. " . mysqli_connect_error());
 }
 
-$servers  = array_keys($SQUID_PM_DB);
-$rs       = $conn->query("select username from user_devices where mac_address = '$mac' and " . ($servers ? "(server_name in ('" . implode("', '", $servers) . "') or server_name is null)" : "server_name is null"));
+$servers = is_array($SQUID_PM_DB) ? array_keys($SQUID_PM_DB) : array();
+
+// device records take priority over transient sessions
+$rs = $conn->query("select username from user_devices where mac_address = '$mac' and " . ($servers ? "(server_name in ('" . implode("', '", $servers) . "') or server_name is null)" : "server_name is null"));
 
 if ($rs && ($row = $rs->fetch_row()))
 {
@@ -192,10 +179,12 @@ if ( ! $loggedIn && $isPost)
                     {
                         $allowed = true;
 
-                        if (isset($groupPermissions["SESSION_DURATION"]))
+                        if ( ! $register && isset($groupPermissions["SESSION_DURATION"]))
                         {
                             $sessionTime = $groupPermissions["SESSION_DURATION"];
                         }
+
+                        break;
                     }
                 }
             }
@@ -231,11 +220,11 @@ if ( ! $loggedIn && $isPost)
             $errors[] = "Invalid username or password.";
         }
     }
+}
 
-    if ($errors)
-    {
-        $feedback = "<p style='color:#f00'>" . implode("<br />", $errors) . "</p>";
-    }
+if ($errors)
+{
+    $feedback .= "<p style='color:#f00'>" . implode("<br />", $errors) . "</p>";
 }
 
 $conn->close();
@@ -254,7 +243,7 @@ if ($loggedIn)
 
 if ($loggedIn && $redirect)
 {
-    print '<meta http-equiv="refresh" content="10;URL=\'' . $redirect . '\'" />';
+    print '<meta http-equiv="refresh" content="5;URL=\'' . $redirect . '\'" />';
 }
 
 ?>

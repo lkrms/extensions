@@ -19,6 +19,18 @@ require_once (SQUID_ROOT . "/../lib/php/Mail/mime.php");
 // required for date() calls
 date_default_timezone_set(SQUID_TIMEZONE);
 
+function _post($name, $default = "")
+{
+    if (isset($_POST[$name]))
+    {
+        return $_POST[$name];
+    }
+    else
+    {
+        return $default;
+    }
+}
+
 function writeLog($message, $verbose = false)
 {
     global $pid;
@@ -91,6 +103,16 @@ function getUserGroups($username, $checkEnabled = true, $globalAd = true, $ldapS
     }
 
     return $groups;
+}
+
+$isCli     = PHP_SAPI == "cli";
+$isPost    = false;
+$isSecure  = false;
+
+if ( ! $isCli)
+{
+    $isPost    = $_SERVER["REQUEST_METHOD"] == "POST";
+    $isSecure  = ! empty($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] != "off";
 }
 
 // PRETTY_NESTED_ARRAYS,0
