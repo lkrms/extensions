@@ -9,17 +9,19 @@ $SQUID_ILLEGAL_IP = array(
 );
 
 // where to direct users if something breaks
-define("SQUID_SUPPORT_URL", "http://helpdesk.mydomain.local/");
+define("SQUID_SUPPORT_URL", "http://helpdesk.mydomain.com/");
 
 // where to send users if the authentication portal can't find a usable referer
 define("SQUID_DEFAULT_REDIRECT", "http://www.mydomain.com/");
 
-// how many seconds to wait for MySQL / Profile Manager / LDAP connections
+// how many seconds to wait for MySQL / LDAP connections
 define("SQUID_CONNECT_TIMEOUT", 4);
 
 // how many seconds to cache credentials for (unless an explicit session expiry has been set in BYOD database)
 define("SQUID_DEFAULT_TTL", 300);
-define("SQUID_MAX_TTL", 300);
+
+// this limits how long credentials from BYOD database will be cached in-process
+define("SQUID_MAX_TTL", SQUID_DEFAULT_TTL);
 
 // some requests can trigger a temporary "authenticated" state, e.g. to allow iCloud backups to proceed
 define("SQUID_VIRTUAL_USER", "virtual_user");
@@ -43,11 +45,30 @@ $SQUID_LDAP_GROUP_DN = array(
     "my_group" => "CN=My Group,OU=Groups,DC=mydomain,DC=local"
 );
 
+// maps group DNs to BYOD permissions (if empty, all users have all permissions)
+$SQUID_LDAP_GROUP_PERMISSIONS = array(
+
+    // keys should exactly match LDAP DNs (they're case sensitive)
+    "CN=My Group,OU=Groups,DC=mydomain,DC=local" => array(
+
+        // allowed to log in for a transient session?
+        "ALLOW_SESSION" => true,
+
+        // optional, defaults to SQUID_DEFAULT_SESSION_DURATION
+        "SESSION_DURATION" => "02:00",
+
+        // allowed to log in permanently?
+        "ALLOW_DEVICE_REGISTRATION" => true,
+    ),
+);
+
 // database credentials (MySQL)
 define("SQUID_DB_SERVER", "localhost");
 define("SQUID_DB_NAME", "squid");
 define("SQUID_DB_USERNAME", "squid");
 define("SQUID_DB_PASSWORD", "PASSWORD");
+
+// this shouldn't be longer than your default DHCP lease duration (since sessions are tracked by IP)
 define("SQUID_DEFAULT_SESSION_DURATION", "01:00");
 
 // any number of Profile Manager instances may be defined here

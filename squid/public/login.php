@@ -126,7 +126,7 @@ else
 }
 
 // now, check for an active session in the database
-$conn = new mysqli(SQUID_BYOD_DB_SERVER, SQUID_BYOD_DB_USERNAME, SQUID_BYOD_DB_PASSWORD, SQUID_BYOD_DB_NAME);
+$conn = new mysqli(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_DB_NAME);
 
 if (mysqli_connect_error())
 {
@@ -164,16 +164,43 @@ if ( ! $loggedIn && $isPost)
 
         if ($ad !== false && @ldap_bind($ad, $un . SQUID_LDAP_USERNAME_APPEND, $pw))
         {
-            $sessionTime = SQUID_BYOD_SESSION_DURATION;
+            $allowed      = true;
+            $sessionTime  = SQUID_DEFAULT_SESSION_DURATION;
 
-            // create a session record
-            if ($conn->query("insert into auth_sessions (username, mac_address, ip_address, auth_time_utc, expiry_time_utc) values ('" . $conn->escape_string($un) . "', '$mac', '$srcIP', UTC_TIMESTAMP(), ADDTIME(UTC_TIMESTAMP(), '$sessionTime'))") === false)
+            if ( ! empty($SQUID_LDAP_GROUP_PERMISSIONS))
             {
-                $errors[] = "Unable to create session record in database.";
+                $allowed  = false;
+                $groups   = getUserGroups($un, true, $ad);
+
+                foreach ($SQUID_LDAP_GROUP_PERMISSIONS as $groupDN => $groupPermissions)
+                {
+                    if (in_array($groupDN, $groups) && $groupPermissions["ALLOW_SESSION"])
+                    {
+                        $allowed = true;
+
+                        if (isset($groupPermissions["SESSION_DURATION"]))
+                        {
+                            $sessionTime = $groupPermissions["SESSION_DURATION"];
+                        }
+                    }
+                }
+            }
+
+            if ($allowed)
+            {
+                // create a session record
+                if ($conn->query("insert into auth_sessions (username, mac_address, ip_address, auth_time_utc, expiry_time_utc) values ('" . $conn->escape_string($un) . "', '$mac', '$srcIP', UTC_TIMESTAMP(), ADDTIME(UTC_TIMESTAMP(), '$sessionTime'))") === false)
+                {
+                    $errors[] = "Unable to create session record in database.";
+                }
+                else
+                {
+                    $loggedIn = true;
+                }
             }
             else
             {
-                $loggedIn = true;
+                $errors[] = "Your username and password are correct, but you're not authorised to log in using this service. <a href='" . SQUID_SUPPORT_URL . "'>Click here to request help with this issue.</a>";
             }
         }
         else
@@ -223,7 +250,7 @@ if ( ! $loggedIn):
     <?php
     if ( ! $isSecure):
 ?>
-    <p style='color:#f00'>WARNING: your username and password will be sent over the network insecurely. To avoid this, add $_SERVER[SERVER_NAME] to your 'bypass proxy for these addresses' list.</p>
+    <p style='color:#f00'>WARNING: your username and password will be sent over the network insecurely. To avoid this, add <?php echo $_SERVER["SERVER_NAME"]; ?> to your 'bypass proxy for these addresses' list.</p>
     <?php
     endif;
 ?>

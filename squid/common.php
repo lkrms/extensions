@@ -35,21 +35,30 @@ function writeLog($message, $verbose = false)
     }
 }
 
-function getUserGroups($username, $checkEnabled = true, $ldapServer = SQUID_LDAP_SERVER, $ldapUser = SQUID_LDAP_USER_DN, $ldapPassword = SQUID_LDAP_USER_PW, $ldapBase = SQUID_LDAP_BASE_DN)
+function getUserGroups($username, $checkEnabled = true, $boundAd = null, $ldapServer = SQUID_LDAP_SERVER, $ldapUser = SQUID_LDAP_USER_DN, $ldapPassword = SQUID_LDAP_USER_PW, $ldapBase = SQUID_LDAP_BASE_DN)
 {
-    global $ad;
-
-    if (($ad = ldap_connect($ldapServer)) === false)
+    if (is_null($boundAd))
     {
-        return false;
+        global $ad;
+
+        if (($ad = ldap_connect($ldapServer)) === false)
+        {
+            return false;
+        }
+
+        ldap_set_option($ad, LDAP_OPT_REFERRALS, false);
+        ldap_set_option($ad, LDAP_OPT_PROTOCOL_VERSION, 3);
+
+        if ( ! ldap_bind($ad, $ldapUser, $ldapPassword))
+        {
+            return false;
+        }
     }
-
-    ldap_set_option($ad, LDAP_OPT_REFERRALS, false);
-    ldap_set_option($ad, LDAP_OPT_PROTOCOL_VERSION, 3);
-
-    if ( ! ldap_bind($ad, $ldapUser, $ldapPassword))
+    else
     {
-        return false;
+        $ad = $boundAd;
+        ldap_set_option($ad, LDAP_OPT_REFERRALS, false);
+        ldap_set_option($ad, LDAP_OPT_PROTOCOL_VERSION, 3);
     }
 
     if ($checkEnabled)
