@@ -211,7 +211,7 @@ if ( ! $loggedIn && $isPost)
 
     if ($errors)
     {
-        $feedback = "<p style='color:#f00'>" . implode("<br />", $errors) . "<br />Please try again.</p>";
+        $feedback = "<p style='color:#f00'>" . implode("<br />", $errors) . "</p>";
     }
 }
 
