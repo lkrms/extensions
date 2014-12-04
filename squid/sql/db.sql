@@ -24,3 +24,7 @@ ALTER TABLE `user_devices`
 ALTER TABLE `user_devices`
   ADD COLUMN `auth_time_utc` datetime DEFAULT NULL;
 
+ALTER TABLE `user_devices`
+  ADD COLUMN `serial_number` varchar(100) DEFAULT NULL,
+  ADD COLUMN `user_guid` varchar(36) DEFAULT NULL;
+

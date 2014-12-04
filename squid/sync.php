@@ -9,7 +9,7 @@ function getPgConnectionString($server, $port, $name, $username, $password)
     return "host=$server port=$port dbname=$name user=$username password='" . addslashes($password) . "' connect_timeout=" . SQUID_CONNECT_TIMEOUT;
 }
 
-function processRecord($mac, $un)
+function processRecord($mac, $un, $sn, $guid)
 {
     global $macs, $toDelete, $toAdd;
 
@@ -20,11 +20,11 @@ function processRecord($mac, $un)
     }
 
     $macs[]  = $mac;
-    $lineId  = array_search( array($mac, $un), $toDelete);
+    $lineId  = array_search( array($mac, $un, $sn, $guid), $toDelete);
 
     if ($lineId === false)
     {
-        $toAdd[] = array($mac, $un);
+        $toAdd[] = array($mac, $un, $sn, $guid);
     }
     else
     {
@@ -51,7 +51,7 @@ foreach ($SQUID_PM_DB as $pmId => $pmDb)
     }
 
     // retrieve cached device records
-    $rs = mysqli_query($conn, "SELECT line_id, mac_address, username FROM user_devices WHERE server_name = '" . mysqli_real_escape_string($conn, $pmId) . "'");
+    $rs = mysqli_query($conn, "SELECT line_id, mac_address, username, serial_number, user_guid FROM user_devices WHERE server_name = '" . mysqli_real_escape_string($conn, $pmId) . "'");
 
     if ($rs === false)
     {
@@ -64,7 +64,7 @@ foreach ($SQUID_PM_DB as $pmId => $pmDb)
 
     while ($row = mysqli_fetch_row($rs))
     {
-        $toDelete[$row[0]] = array(strtolower(trim($row[1])), trim($row[2]));
+        $toDelete[$row[0]] = array(strtolower(trim($row[1])), trim($row[2]), trim($row[3]), trim($row[4]));
     }
 
     mysqli_free_result($rs);
@@ -86,7 +86,7 @@ foreach ($SQUID_PM_DB as $pmId => $pmDb)
     }
 
     // limit ourselves to devices with recent checkins that aren't placeholders
-    $prs = pg_query($pconn, "SELECT devices.\"WiFiMAC\", devices.\"EthernetMAC\", devices.\"ProductName\", users.short_name
+    $prs = pg_query($pconn, "SELECT devices.\"WiFiMAC\", devices.\"EthernetMAC\", devices.\"ProductName\", users.short_name, devices.\"SerialNumber\", users.guid
 FROM devices
 	INNER JOIN users ON devices.user_id = users.id
 WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
@@ -105,15 +105,17 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
         $mac2  = strtolower(trim($row[1]));
         $pn    = strtolower(trim($row[2]));
         $un    = trim($row[3]);
+        $sn    = trim($row[4]);
+        $guid  = trim($row[5]);
 
         if ($mac)
         {
-            processRecord($mac, $un);
+            processRecord($mac, $un, $sn, $guid);
         }
 
         if ($mac2 && preg_match("/^(macmini|imac)/", $pn))
         {
-            processRecord($mac2, $un);
+            processRecord($mac2, $un, $sn, $guid);
         }
     }
 
@@ -136,12 +138,12 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
 
     // add new device records to cache
     // delete invalid device records from cache
-    $q = mysqli_prepare($conn, "INSERT INTO user_devices (server_name, mac_address, username) VALUES (?, ?, ?)");
-    mysqli_stmt_bind_param($q, "sss", $pmId, $mac, $un);
+    $q = mysqli_prepare($conn, "INSERT INTO user_devices (server_name, mac_address, username, serial_number, user_guid) VALUES (?, ?, ?, ?, ?)");
+    mysqli_stmt_bind_param($q, "sssss", $pmId, $mac, $un, $sn, $guid);
 
     foreach ($toAdd as $device)
     {
-        list ($mac, $un) = $device;
+        list ($mac, $un, $sn, $guid) = $device;
 
         if (mysqli_stmt_execute($q) === false)
         {
