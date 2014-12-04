@@ -8,6 +8,11 @@ $SQUID_ILLEGAL_IP = array(
     "127.0.0.1",
 );
 
+// used to determine which PAC file to hand out
+$SQUID_LAN_SUBNETS = array(
+    "192.168.0.0/255.255.0.0",
+);
+
 // where to direct users if something breaks
 define("SQUID_SUPPORT_URL", "http://helpdesk.mydomain.com/");
 
@@ -46,6 +51,7 @@ $SQUID_LDAP_GROUP_DN = array(
 );
 
 // maps group DNs to BYOD permissions (if empty, all users have all permissions)
+// NOTE: the first matching entry with the relevant permission will be used to determine session duration
 $SQUID_LDAP_GROUP_PERMISSIONS = array(
 
     // keys should exactly match LDAP DNs (they're case sensitive)
@@ -96,8 +102,8 @@ $SQUID_PM_DB = array(
 );
 
 // where to log stuff and things
-define("SQUID_LOG_FILE", "/var/log/squid3/external_acl.log");
-define("SQUID_LOG_VERBOSE", true);
+define("SQUID_LOG_FILE", "/var/log/squid3/lkrms_extensions.log");
+define("SQUID_LOG_VERBOSE", false);
 
 // ERR until Squid 3.4, BH on Squid 3.4+
 define("SQUID_FAILURE_CODE", "ERR");

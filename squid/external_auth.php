@@ -158,6 +158,15 @@ while ( ! feof(STDIN))
         continue;
     }
 
+    $port = null;
+
+    // has a port number been passed?
+    if (isset($input[1]) && preg_match('/^[0-9]+$/', $input[1]))
+    {
+        $port = $input[1] + 0;
+        array_splice($input, 1, 1);
+    }
+
     // is Squid telling us that other authentication has passed?
     if (isset($input[1]) && substr($input[1], 0, 2) == "__")
     {
