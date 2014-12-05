@@ -262,7 +262,7 @@ if ( ! $loggedIn):
     <?php
     if ( ! $isSecure):
 ?>
-    <p style='color:#f00'>WARNING: your username and password will be sent over the network insecurely. To avoid this, add <?php echo $_SERVER["SERVER_NAME"]; ?> to your 'bypass proxy for these addresses' list.</p>
+    <p style='color:#f00'>WARNING: your username and password will be sent over the network insecurely. To avoid this, add <strong><?php echo $_SERVER["SERVER_NAME"]; ?></strong> to your 'bypass proxy for these addresses' list.</p>
     <?php
     endif;
 ?>
@@ -270,7 +270,7 @@ if ( ! $loggedIn):
     <input type="hidden" name="redirect" value="<?php echo htmlspecialchars($redirect); ?>">
     <p>Username: <input type="text" name="username" size="30" value="<?php echo htmlspecialchars($un); ?>"></p>
     <p>Password: <input type="password" name="password" size="30"></p>
-    <p><input type="checkbox" name="register_device" value="1"> I&rsquo;m the only person with access to this device. Register my login permanently.</p>
+    <p><input type="checkbox" name="register_device" id="register_device" value="1"> <label for="register_device">I&rsquo;m the only person with access to this device. Register my login permanently.</label></p>
     <p><input type="submit" name="submit" value="Login" /></p>
     <?php print "</form>";
 endif;
