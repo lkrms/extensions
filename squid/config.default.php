@@ -101,6 +101,21 @@ $SQUID_PM_DB = array(
     )
 );
 
+// any number of FOG instances may be defined here
+$SQUID_FOG_DB = array(
+
+    // keys must be globally unique and <=10 characters in length
+    "FOG_LINUX001" => array(
+
+        // MySQL credentials (read-only permission is fine)
+        "SERVER"   => "LINUX001",
+        "PORT"     => "3306",
+        "NAME"     => "fog",
+        "USERNAME" => "squid",
+        "PASSWORD" => "PASSWORD",
+    )
+);
+
 // where to log stuff and things
 define("SQUID_LOG_FILE", "/var/log/squid3/lkrms_extensions.log");
 define("SQUID_LOG_VERBOSE", false);

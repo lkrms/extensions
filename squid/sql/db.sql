@@ -28,3 +28,12 @@ ALTER TABLE `user_devices`
   ADD COLUMN `serial_number` varchar(100) DEFAULT NULL,
   ADD COLUMN `user_guid` varchar(36) DEFAULT NULL;
 
+CREATE TABLE IF NOT EXISTS `mac_addresses` (
+  `line_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `server_name` varchar(10) NOT NULL DEFAULT '',
+  `mac_address` char(17) NOT NULL DEFAULT '',
+  `auth_negotiate` char(1) NOT NULL DEFAULT 'Y',
+  PRIMARY KEY (`line_id`),
+  KEY `server_name` (`server_name`,`mac_address`)
+);
+

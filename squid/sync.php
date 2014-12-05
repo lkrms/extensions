@@ -32,6 +32,29 @@ function processRecord($mac, $un, $sn, $guid)
     }
 }
 
+function processMACRecord($mac, $auth_neg)
+{
+    global $macs, $toDelete, $toAdd;
+
+    if (in_array($mac, $macs))
+    {
+        // device databases are defined in descending order of priority
+        return;
+    }
+
+    $macs[]  = $mac;
+    $lineId  = array_search( array($mac, $auth_neg), $toDelete);
+
+    if ($lineId === false)
+    {
+        $toAdd[] = array($mac, $auth_neg);
+    }
+    else
+    {
+        unset($toDelete[$lineId]);
+    }
+}
+
 $conn = new mysqli(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_DB_NAME);
 
 if (mysqli_connect_error())
@@ -137,7 +160,6 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
     }
 
     // add new device records to cache
-    // delete invalid device records from cache
     $q = mysqli_prepare($conn, "INSERT INTO user_devices (server_name, mac_address, username, serial_number, user_guid) VALUES (?, ?, ?, ?, ?)");
     mysqli_stmt_bind_param($q, "sssss", $pmId, $mac, $un, $sn, $guid);
 
@@ -154,7 +176,133 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
     }
 }
 
-writeLog("Added: $added; deleted: $deleted");
+writeLog("Profile Manager sync completed. Added: $added; deleted: $deleted");
+
+// now, sync device records from FOG
+if ( ! is_array($SQUID_FOG_DB))
+{
+    exit;
+}
+
+$macs     = array();
+$deleted  = 0;
+$added    = 0;
+
+foreach ($SQUID_FOG_DB as $fogId => $fogDb)
+{
+    // retrieve cached device records
+    $rs = mysqli_query($conn, "SELECT line_id, mac_address, auth_negotiate FROM mac_addresses WHERE server_name = '" . mysqli_real_escape_string($conn, $fogId) . "'");
+
+    if ($rs === false)
+    {
+        // TODO: something more decisive here
+        continue;
+    }
+
+    $toDelete  = array();
+    $toAdd     = array();
+
+    while ($row = mysqli_fetch_row($rs))
+    {
+        $toDelete[$row[0]] = array(strtolower(trim($row[1])), strtoupper(trim($row[2])));
+    }
+
+    mysqli_free_result($rs);
+
+    // retrieve latest device records
+    $mconn = new mysqli($fogDb["SERVER"], $fogDb["USERNAME"], $fogDb["PASSWORD"], $fogDb["NAME"], $fogDb["PORT"]);
+
+    if (mysqli_connect_error())
+    {
+        // TODO: add log entry / email notification here
+        continue;
+    }
+
+    $mrs = mysqli_query($mconn, "select hostMAC from hosts where hostUseAD = 1
+union
+select hmMAC from hostMAC where hmHostID in (select hostID from hosts where hostUseAD = 1)");
+
+    if ($mrs === false)
+    {
+        // TODO: add log entry / email notification here
+        mysqli_close($mconn);
+
+        continue;
+    }
+
+    while ($row = mysqli_fetch_row($mrs))
+    {
+        $mac = strtolower(trim($row[0]));
+
+        if ($mac)
+        {
+            processMACRecord($mac, "Y");
+        }
+    }
+
+    mysqli_free_result($mrs);
+    mysqli_close($mconn);
+
+    // delete invalid device records from cache
+    $q = mysqli_prepare($conn, "DELETE FROM mac_addresses WHERE line_id = ?");
+    mysqli_stmt_bind_param($q, "i", $lineId);
+
+    // $toDelete is keyed on line_id
+    $lineIds = array_keys($toDelete);
+
+    foreach ($lineIds as $lineId)
+    {
+        if (mysqli_stmt_execute($q) === false)
+        {
+            exit ("Unable to delete cached device record: " . mysqli_error());
+        }
+
+        $deleted++;
+    }
+
+    // add new device records to cache
+    $q = mysqli_prepare($conn, "INSERT INTO mac_addresses (server_name, mac_address, auth_negotiate) VALUES (?, ?, ?)");
+    mysqli_stmt_bind_param($q, "sss", $fogId, $mac, $auth_neg);
+
+    foreach ($toAdd as $device)
+    {
+        list ($mac, $auth_neg) = $device;
+
+        if (mysqli_stmt_execute($q) === false)
+        {
+            exit ("Unable to create cached device record: " . mysqli_error());
+        }
+
+        $added++;
+    }
+}
+
+writeLog("FOG sync completed. Added: $added; deleted: $deleted");
+
+if ($added + $deleted > 0)
+{
+    $rs = mysqli_query($conn, "SELECT mac_address FROM mac_addresses WHERE auth_negotiate = 'Y' ORDER BY mac_address");
+
+    if ($rs === false)
+    {
+        // TODO: something more decisive here
+        exit;
+    }
+
+    $macs = array();
+
+    while ($row = mysqli_fetch_row($rs))
+    {
+        $macs[] = strtolower(trim($row[0]));
+    }
+
+    mysqli_free_result($rs);
+
+    // generate up-to-date MAC database for Squid
+    file_put_contents(SQUID_ROOT . "/auth_negotiate_macs", implode("\n", $macs));
+
+    // TODO: reload Squid here
+}
 
 // PRETTY_NESTED_ARRAYS,0
 
