@@ -119,6 +119,7 @@ order by att_year"
         when '1' then 'Year 11'
         when '2' then 'Year 12'
         else case LEFT(tchsub.sub_code, 2)
+            when '37' then 'Prep'
             when '30' then 'Kindy'
             when '31' then 'Year 1'
             when '32' then 'Year 2'
