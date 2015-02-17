@@ -231,7 +231,7 @@ $conn->close();
 
 if ($loggedIn)
 {
-    $feedback = "<p style='color:#008000'>You are logged in as <strong>$un.</strong> You will now be redirected to the page you originally requested.</p>";
+    $feedback = "<p style='color:#008000'>You are logged in as <strong>$un</strong> on this device ($mac). You will now be redirected to the page you originally requested.</p>";
 }
 
 ?>
@@ -270,6 +270,7 @@ if ( ! $loggedIn):
     <input type="hidden" name="redirect" value="<?php echo htmlspecialchars($redirect); ?>">
     <p>Username: <input type="text" name="username" size="30" value="<?php echo htmlspecialchars($un); ?>"></p>
     <p>Password: <input type="password" name="password" size="30"></p>
+    <p>Device identifier: <strong><?php echo $mac; ?></strong></p>
     <p><input type="checkbox" name="register_device" id="register_device" value="1"> <label for="register_device">I&rsquo;m the only person with access to this device. Register my login permanently.</label></p>
     <p><input type="submit" name="submit" value="Login" /></p>
     <?php print "</form>";
