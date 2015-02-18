@@ -304,6 +304,9 @@ if ($added + $deleted > 0)
     // TODO: reload Squid here
 }
 
+// clean up all of the iptables chains we administer
+iptablesUpdate();
+
 // PRETTY_NESTED_ARRAYS,0
 
 ?>

@@ -168,10 +168,103 @@ function getUserGroups($username, $checkEnabled = true, $globalAd = true, $ldapS
 
 function iptablesUpdate()
 {
+    global $iptablesConn;
+
+    // update proxy-enforced and no-proxy chains
+    iptablesUpdateChain(true);
+    iptablesUpdateChain(false);
+
+    // this function needs to be safe within a long-running process, so cleanup is important
+    $iptablesConn->close();
+    unset($GLOBALS["iptablesConn"]);
 }
 
-function iptablesGetMacs($chain)
+function iptablesUpdateChain($proxyEnforced)
 {
+    $iptMacs   = iptablesGetMacs($proxyEnforced);
+    $macs      = iptablesGetDbMacs($proxyEnforced);
+    $toAdd     = array();
+    $toDelete  = array();
+
+    // pass 1: identify MACs to remove from chain
+    foreach ($iptMacs as $mac)
+    {
+        if ( ! in_array($mac, $macs))
+        {
+            $toDelete[] = $mac;
+        }
+    }
+
+    // pass 2: identify MACs to add to chain
+    foreach ($macs as $mac)
+    {
+        if ( ! in_array($mac, $iptMacs))
+        {
+            $toAdd[] = $mac;
+        }
+        else
+        {
+            // also check for duplicates in chain
+            $count = count(array_keys($iptMacs, $mac));
+
+            while ($count > 1)
+            {
+                $toDelete[] = $mac;
+                $count--;
+            }
+        }
+    }
+
+    foreach ($toAdd as $mac)
+    {
+        iptablesAddUserDevice($mac, $proxyEnforced);
+    }
+
+    foreach ($toDelete as $mac)
+    {
+        iptablesRemoveUserDevice($mac, $proxyEnforced);
+    }
+}
+
+function iptablesGetDbMacs($proxyEnforced = true)
+{
+    global $iptablesConn;
+
+    if ( ! isset($iptablesConn))
+    {
+        $iptablesConn = new mysqli(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_DB_NAME);
+
+        if (mysqli_connect_error())
+        {
+            exit ("Unable to connect to database. " . mysqli_connect_error());
+        }
+    }
+
+    $noProxy  = $proxyEnforced ? 'N' : 'Y';
+    $rs       = $iptablesConn->query("select mac_address from auth_sessions where expiry_time_utc > UTC_TIMESTAMP() and no_proxy = '$noProxy'
+union
+select mac_address from user_devices where server_name is null and no_proxy = '$noProxy'");
+
+    if ( ! $rs)
+    {
+        exit ("Unable to query the database.");
+    }
+
+    $macs = array();
+
+    while ($row = $rs->fetch_row())
+    {
+        $macs[] = sanitiseMac(trim($row[0]));
+    }
+
+    $rs->close();
+
+    return $macs;
+}
+
+function iptablesGetMacs($proxyEnforced = true)
+{
+    $chain  = $proxyEnforced ? SQUID_IPTABLES_USER_DEVICES_CHAIN : SQUID_IPTABLES_NO_PROXY_CHAIN;
     $rules  = explode("\n", shell_exec(SQUID_IPTABLES_PATH . " -t filter -L $chain -n --line-numbers | egrep '^[0-9]+'"));
     $macs   = array();
 
@@ -186,14 +279,31 @@ function iptablesGetMacs($chain)
     return $macs;
 }
 
-function iptablesAddUserDevice($mac, $proxyEnforced = true)
+function iptablesAddUserDevice($mac, $proxyEnforced = true, $preSanitised = false)
 {
-    $mac    = sanitiseMac($mac);
-    $chain  = $proxyEnforced ? SQUID_IPTABLES_USER_DEVICES_CHAIN : SQUID_IPTABLES_NO_PROXY_CHAIN;
+    if ( ! $preSanitised)
+    {
+        $mac = sanitiseMac($mac);
+    }
+
+    $chain = $proxyEnforced ? SQUID_IPTABLES_USER_DEVICES_CHAIN : SQUID_IPTABLES_NO_PROXY_CHAIN;
 
     // attempt deletion to prevent duplication
     shell_exec(SQUID_IPTABLES_PATH . " -t filter -D $chain -m mac --mac-source $mac -j ACCEPT");
     shell_exec(SQUID_IPTABLES_PATH . " -t filter -A $chain -m mac --mac-source $mac -j ACCEPT");
+}
+
+function iptablesRemoveUserDevice($mac, $proxyEnforced = true, $preSanitised = false)
+{
+    if ( ! $preSanitised)
+    {
+        $mac = sanitiseMac($mac);
+    }
+
+    $chain = $proxyEnforced ? SQUID_IPTABLES_USER_DEVICES_CHAIN : SQUID_IPTABLES_NO_PROXY_CHAIN;
+
+    // as above
+    shell_exec(SQUID_IPTABLES_PATH . " -t filter -D $chain -m mac --mac-source $mac -j ACCEPT");
 }
 
 $isCli     = PHP_SAPI == "cli";
