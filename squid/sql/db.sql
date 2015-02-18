@@ -37,3 +37,21 @@ CREATE TABLE IF NOT EXISTS `mac_addresses` (
   KEY `server_name` (`server_name`,`mac_address`)
 );
 
+CREATE TABLE IF NOT EXISTS `wan_sessions` (
+  `session_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `username` varchar(20) NOT NULL DEFAULT '',
+  `serial_number` varchar(100) NOT NULL DEFAULT '',
+  `ip_address` char(45) NOT NULL DEFAULT '',
+  `proxy_port` int NOT NULL DEFAULT 0,
+  `auth_time_utc` datetime NOT NULL,
+  `expiry_time_utc` datetime NOT NULL,
+  PRIMARY KEY (`session_id`),
+  KEY `username` (`username`,`serial_number`,`ip_address`,`expiry_time_utc`),
+  KEY `ip_address` (`ip_address`,`proxy_port`,`expiry_time_utc`)
+);
+
+ALTER TABLE `auth_sessions`
+  ADD COLUMN `no_proxy` char(1) NOT NULL DEFAULT 'N';
+
+ALTER TABLE `user_devices`
+  ADD COLUMN `no_proxy` char(1) NOT NULL DEFAULT 'N' AFTER `auth_time_utc`;

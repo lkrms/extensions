@@ -31,6 +31,18 @@ function _post($name, $default = "")
     }
 }
 
+function _get($name, $default = "")
+{
+    if (isset($_GET[$name]))
+    {
+        return $_GET[$name];
+    }
+    else
+    {
+        return $default;
+    }
+}
+
 function writeLog($message, $verbose = false)
 {
     global $pid;
@@ -47,8 +59,57 @@ function writeLog($message, $verbose = false)
     }
 }
 
+// ensures the given MAC address is lowercase and 17 characters long (OS X hosts don't add leading zeroes)
+function sanitiseMac($mac)
+{
+    $macBytes  = explode(":", strtolower($mac));
+    $mac       = "";
+
+    foreach ($macBytes as $macByte)
+    {
+        if ($mac)
+        {
+            $mac .= ":";
+        }
+
+        if (strlen($macByte) == 2)
+        {
+            $mac .= $macByte;
+        }
+        else
+        {
+            $mac .= "0$macByte";
+        }
+    }
+
+    return $mac;
+}
+
+function isOnLan($ip)
+{
+    global $SQUID_LAN_SUBNETS;
+
+    // convert dotted quad to integer
+    $ip = ip2long($ip);
+
+    foreach ($SQUID_LAN_SUBNETS as $subnet)
+    {
+        list ($network, $mask)  = explode("/", $subnet);
+        $network                = ip2long($network);
+        $mask                   = ip2long($mask);
+
+        if (($ip & $mask) == $network)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function getUserGroups($username, $checkEnabled = true, $globalAd = true, $ldapServer = SQUID_LDAP_SERVER, $ldapUser = SQUID_LDAP_USER_DN, $ldapPassword = SQUID_LDAP_USER_PW, $ldapBase = SQUID_LDAP_BASE_DN)
 {
+    // see cleanUp function in external_auth.php
     if ($globalAd)
     {
         global $ad;
@@ -103,6 +164,36 @@ function getUserGroups($username, $checkEnabled = true, $globalAd = true, $ldapS
     }
 
     return $groups;
+}
+
+function iptablesUpdate()
+{
+}
+
+function iptablesGetMacs($chain)
+{
+    $rules  = explode("\n", shell_exec(SQUID_IPTABLES_PATH . " -t filter -L $chain -n --line-numbers | egrep '^[0-9]+'"));
+    $macs   = array();
+
+    foreach ($rules as $rule)
+    {
+        if (preg_match("/(([0-9a-f]{1,2}:){5}[0-9a-f]{1,2})/i", $rule, $matches))
+        {
+            $macs[] = sanitiseMac($matches[0]);
+        }
+    }
+
+    return $macs;
+}
+
+function iptablesAddUserDevice($mac, $proxyEnforced = true)
+{
+    $mac    = sanitiseMac($mac);
+    $chain  = $proxyEnforced ? SQUID_IPTABLES_USER_DEVICES_CHAIN : SQUID_IPTABLES_NO_PROXY_CHAIN;
+
+    // attempt deletion to prevent duplication
+    shell_exec(SQUID_IPTABLES_PATH . " -t filter -D $chain -m mac --mac-source $mac -j ACCEPT");
+    shell_exec(SQUID_IPTABLES_PATH . " -t filter -A $chain -m mac --mac-source $mac -j ACCEPT");
 }
 
 $isCli     = PHP_SAPI == "cli";

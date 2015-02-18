@@ -81,30 +81,11 @@ if ($pingFirst)
 }
 
 $arp      = shell_exec(SQUID_ARP_PATH . " -n $srcIP");
-$mac      = "";
 $matches  = array();
 
 if (preg_match("/(([0-9a-f]{1,2}:){5}[0-9a-f]{1,2})/i", $arp, $matches))
 {
-    // ensure the MAC address is 17 characters long (OS X hosts don't add leading zeroes)
-    $macBytes = explode(":", strtolower($matches[0]));
-
-    foreach ($macBytes as $macByte)
-    {
-        if ($mac)
-        {
-            $mac .= ":";
-        }
-
-        if (strlen($macByte) == 2)
-        {
-            $mac .= $macByte;
-        }
-        else
-        {
-            $mac .= "0$macByte";
-        }
-    }
+    $mac = sanitiseMac($matches[0]);
 }
 else
 {
@@ -165,8 +146,9 @@ if ( ! $loggedIn && $isPost)
 
         if ($ad !== false && @ldap_bind($ad, $un . SQUID_LDAP_USERNAME_APPEND, $pw))
         {
-            $allowed      = true;
-            $sessionTime  = SQUID_DEFAULT_SESSION_DURATION;
+            $allowed        = true;
+            $proxyEnforced  = true;
+            $sessionTime    = SQUID_DEFAULT_SESSION_DURATION;
 
             if ( ! empty($SQUID_LDAP_GROUP_PERMISSIONS))
             {
@@ -184,6 +166,11 @@ if ( ! $loggedIn && $isPost)
                             $sessionTime = $groupPermissions["SESSION_DURATION"];
                         }
 
+                        if (isset($groupPermissions["ALLOW_NO_PROXY"]) && $groupPermissions["ALLOW_NO_PROXY"])
+                        {
+                            $proxyEnforced = false;
+                        }
+
                         break;
                     }
                 }
@@ -191,13 +178,15 @@ if ( ! $loggedIn && $isPost)
 
             if ($allowed)
             {
+                $noProxy = $proxyEnforced ? 'N' : 'Y';
+
                 if ($register)
                 {
-                    $sql = "insert into user_devices (mac_address, username, auth_time_utc) values ('$mac', '" . $conn->escape_string($un) . "', UTC_TIMESTAMP())";
+                    $sql = "insert into user_devices (mac_address, username, auth_time_utc, no_proxy) values ('$mac', '" . $conn->escape_string($un) . "', UTC_TIMESTAMP(), '$noProxy')";
                 }
                 else
                 {
-                    $sql = "insert into auth_sessions (username, mac_address, ip_address, auth_time_utc, expiry_time_utc) values ('" . $conn->escape_string($un) . "', '$mac', '$srcIP', UTC_TIMESTAMP(), ADDTIME(UTC_TIMESTAMP(), '$sessionTime'))";
+                    $sql = "insert into auth_sessions (username, mac_address, ip_address, auth_time_utc, expiry_time_utc, no_proxy) values ('" . $conn->escape_string($un) . "', '$mac', '$srcIP', UTC_TIMESTAMP(), ADDTIME(UTC_TIMESTAMP(), '$sessionTime'), '$noProxy')";
                 }
 
                 // create a session record
@@ -208,6 +197,7 @@ if ( ! $loggedIn && $isPost)
                 else
                 {
                     $loggedIn = true;
+                    iptablesAddUserDevice($mac, $proxyEnforced);
                 }
             }
             else
