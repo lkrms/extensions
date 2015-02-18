@@ -50,8 +50,8 @@ $SQUID_LDAP_GROUP_DN = array(
     "my_group" => "CN=My Group,OU=Groups,DC=mydomain,DC=local"
 );
 
-// maps group DNs to BYOD permissions (if empty, all users have all permissions)
-// NOTE: the first matching entry with the relevant permission will be used to determine session duration
+// maps group DNs to BYOD permissions (if empty, all users have all permissions except ALLOW_NO_PROXY)
+// NOTE: the first matching entry with the relevant permission will be used to determine session duration and proxy bypass rights
 $SQUID_LDAP_GROUP_PERMISSIONS = array(
 
     // keys should exactly match LDAP DNs (they're case sensitive)
@@ -65,6 +65,10 @@ $SQUID_LDAP_GROUP_PERMISSIONS = array(
 
         // allowed to log in permanently?
         "ALLOW_DEVICE_REGISTRATION" => true,
+
+        // allowed to bypass proxy after authenticating?
+        // (useful for guests who may struggle to enable proxy discovery)
+        "ALLOW_NO_PROXY" => false,
     ),
 );
 
