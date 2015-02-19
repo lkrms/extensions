@@ -174,6 +174,9 @@ function iptablesUpdate()
     iptablesUpdateChain(true);
     iptablesUpdateChain(false);
 
+    // also update WAN users chain
+    iptablesUpdateWanUsersChain();
+
     // this function needs to be safe within a long-running process, so cleanup is important
     $iptablesConn->close();
     unset($GLOBALS["iptablesConn"]);
@@ -306,6 +309,86 @@ function iptablesRemoveUserDevice($mac, $proxyEnforced = true, $preSanitised = f
     shell_exec(SQUID_IPTABLES_PATH . " -t filter -D $chain -m mac --mac-source $mac -j ACCEPT");
 }
 
+function iptablesUpdateWanUsersChain()
+{
+    $iptUsers  = iptablesGetWanUsers();
+    $users     = iptablesGetDbWanUsers();
+    $toAdd     = array();
+    $toDelete  = array();
+
+    // pass 1: identify users to remove from chain
+    foreach ($iptUsers as $user)
+    {
+        if ( ! in_array($user, $users))
+        {
+            $toDelete[] = $user;
+        }
+    }
+
+    // pass 2: identify users to add to chain
+    foreach ($users as $user)
+    {
+        if ( ! in_array($user, $iptUsers))
+        {
+            $toAdd[] = $user;
+        }
+        else
+        {
+            // also check for duplicates in chain
+            $count = count(array_keys($iptUsers, $user));
+
+            while ($count > 1)
+            {
+                $toDelete[] = $user;
+                $count--;
+            }
+        }
+    }
+
+    foreach ($toAdd as $user)
+    {
+        iptablesAddWanUser($user[0], $user[1]);
+    }
+
+    foreach ($toDelete as $user)
+    {
+        iptablesRemoveWanUser($user[0], $user[1]);
+    }
+}
+
+function iptablesGetDbWanUsers()
+{
+    global $iptablesConn;
+
+    if ( ! isset($iptablesConn))
+    {
+        $iptablesConn = new mysqli(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_DB_NAME);
+
+        if (mysqli_connect_error())
+        {
+            exit ("Unable to connect to database. " . mysqli_connect_error());
+        }
+    }
+
+    $rs = $iptablesConn->query("select distinct ip_address, proxy_port from wan_sessions where expiry_time_utc > UTC_TIMESTAMP()");
+
+    if ( ! $rs)
+    {
+        exit ("Unable to query the database.");
+    }
+
+    $users = array();
+
+    while ($row = $rs->fetch_row())
+    {
+        $users[] = array(trim($row[0]), $row[1] + 0);
+    }
+
+    $rs->close();
+
+    return $users;
+}
+
 function iptablesGetWanUsers()
 {
     $chain  = SQUID_IPTABLES_WAN_ACCESS_CHAIN;
@@ -336,6 +419,14 @@ function iptablesAddWanUser($ip, $port)
     // attempt deletion to prevent duplication
     shell_exec(SQUID_IPTABLES_PATH . " -t filter -D $chain -p tcp -m tcp -s $ip --dport $port -j ACCEPT");
     shell_exec(SQUID_IPTABLES_PATH . " -t filter -A $chain -p tcp -m tcp -s $ip --dport $port -j ACCEPT");
+}
+
+function iptablesRemoveWanUser($ip, $port)
+{
+    $chain = SQUID_IPTABLES_WAN_ACCESS_CHAIN;
+
+    // as above
+    shell_exec(SQUID_IPTABLES_PATH . " -t filter -D $chain -p tcp -m tcp -s $ip --dport $port -j ACCEPT");
 }
 
 $isCli     = PHP_SAPI == "cli";
