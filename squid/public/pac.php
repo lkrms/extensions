@@ -57,6 +57,8 @@ where user_devices.user_guid = ? and user_devices.serial_number = ?");
         exit ("Unknown device.");
     }
 
+    $q->close();
+
     if (is_null($sessionId))
     {
         // no session, but a matching device record was found, so we're ready to authorise a new session
