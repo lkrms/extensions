@@ -1,0 +1,119 @@
+<?php
+
+define("SQUID_ROOT", dirname(__file__) . "/..");
+require_once (SQUID_ROOT . "/common.php");
+
+if ( ! $isSecure)
+{
+    exit;
+}
+
+$srcIP = $_SERVER["REMOTE_ADDR"];
+
+// defaults for LAN clients (no authentication performed during PAC request)
+$pacFile  = SQUID_ROOT . "/pac.lan.js";
+$subs     = array();
+
+if ( ! isOnLan($srcIP))
+{
+    $guid  = _get("g");
+    $sn    = _get("s");
+
+    if ( ! $guid || ! $sn)
+    {
+        exit ("Invalid request.");
+    }
+
+    $conn = new mysqli(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_DB_NAME);
+
+    if (mysqli_connect_error())
+    {
+        exit ("Unable to connect to database. " . mysqli_connect_error());
+    }
+
+    // do we already have an authenticated session?
+    $q = $conn->prepare("select user_devices.username, user_devices.serial_number, user_devices.user_guid, wan_sessions.session_id, wan_sessions.proxy_port,
+	(select group_concat(distinct proxy_port separator ',') from wan_sessions where ip_address = ? and expiry_time_utc > ADDTIME(UTC_TIMESTAMP(), '0:00:05') group by ip_address) as used_ports
+from user_devices
+	left join wan_sessions on user_devices.username = wan_sessions.username and user_devices.serial_number = wan_sessions.serial_number and wan_sessions.ip_address = ? and wan_sessions.expiry_time_utc > ADDTIME(UTC_TIMESTAMP(), '0:00:05')
+where user_devices.user_guid = ? and user_devices.serial_number = ?");
+
+    if ( ! $q)
+    {
+        exit ("Unable to query the database.");
+    }
+
+    $q->bind_param("ssss", $srcIP, $srcIP, $guid, $sn);
+
+    if ( ! $q->execute())
+    {
+        exit ("Unable to query the database.");
+    }
+
+    $q->bind_result($username, $serialNumber, $userGuid, $sessionId, $proxyPort, $usedPorts);
+
+    if ( ! $q->fetch())
+    {
+        exit ("Unknown device.");
+    }
+
+    if (is_null($sessionId))
+    {
+        // no session, but a matching device record was found, so we're ready to authorise a new session
+        $usedPorts = explode(",", $usedPorts);
+
+        // first, identify a spare port
+        foreach ($SQUID_WAN_PORTS as $port)
+        {
+            if ( ! in_array($port, $usedPorts))
+            {
+                $proxyPort = $port;
+
+                break;
+            }
+        }
+
+        if (is_null($proxyPort))
+        {
+            exit ("No spare WAN ports for this IP address.");
+        }
+
+        if ($conn->query("insert into wan_sessions (username, serial_number, ip_address, proxy_port, auth_time_utc, expiry_time_utc)
+values ('" . $conn->escape_string($username) . "', '" . $conn->escape_string($serialNumber) . "', '$srcIP', $proxyPort, UTC_TIMESTAMP(), ADDTIME(UTC_TIMESTAMP(), '" . SQUID_WAN_SESSION_DURATION . "'))"))
+        {
+            iptablesAddWanUser($srcIP, $proxyPort);
+        }
+        else
+        {
+            exit ("Error creating session.");
+        }
+    }
+    else
+    {
+        $conn->query("update wan_sessions set expiry_time_utc = ADDTIME(UTC_TIMESTAMP(), '" . SQUID_WAN_SESSION_DURATION . "') where session_id = $sessionId");
+    }
+
+    $pacFile         = SQUID_ROOT . "/pac.wan.js";
+    $subs["{PORT}"]  = $proxyPort;
+}
+
+if ( ! file_exists($pacFile))
+{
+    exit ("PAC file not found.");
+}
+
+$pac = file_get_contents($pacFile);
+
+if ($subs)
+{
+    $pac = str_replace(array_keys($subs), array_values($subs), $pac);
+}
+
+header("Content-Type: application/x-ns-proxy-autoconfig");
+header("Cache-Control: no-cache, must-revalidate");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+
+// spit it out
+print $pac;
+
+?>
