@@ -139,4 +139,10 @@ define("SQUID_IPTABLES_USER_DEVICES_CHAIN", "squid_user_devices");
 define("SQUID_IPTABLES_NO_PROXY_CHAIN", "squid_no_proxy");
 define("SQUID_IPTABLES_WAN_ACCESS_CHAIN", "squid_wan_access");
 
+// what WAN-side TCP ports will Squid be listening on?
+$SQUID_WAN_PORTS = range(3130, 3149);
+
+// sessions start (and renew) on PAC file request
+define("SQUID_WAN_SESSION_DURATION", "0:10");
+
 ?>
