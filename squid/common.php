@@ -306,6 +306,38 @@ function iptablesRemoveUserDevice($mac, $proxyEnforced = true, $preSanitised = f
     shell_exec(SQUID_IPTABLES_PATH . " -t filter -D $chain -m mac --mac-source $mac -j ACCEPT");
 }
 
+function iptablesGetWanUsers()
+{
+    $chain  = SQUID_IPTABLES_WAN_ACCESS_CHAIN;
+    $rules  = explode("\n", shell_exec(SQUID_IPTABLES_PATH . " -t filter -L $chain -n --line-numbers | egrep '^[0-9]+'"));
+    $users  = array();
+
+    foreach ($rules as $rule)
+    {
+        if (preg_match("/(([0-9]{1,3}\.){3}([0-9]{1,3})).*dpt:([0-9]{1,5})/", $rule, $matches))
+        {
+            $ip    = $matches[1];
+            $port  = $matches[4];
+
+            if ($ip != '0.0.0.0')
+            {
+                $users[] = array($ip, $port);
+            }
+        }
+    }
+
+    return $users;
+}
+
+function iptablesAddWanUser($ip, $port)
+{
+    $chain = SQUID_IPTABLES_WAN_ACCESS_CHAIN;
+
+    // attempt deletion to prevent duplication
+    shell_exec(SQUID_IPTABLES_PATH . " -t filter -D $chain -p tcp -m tcp -s $ip --dport $port -j ACCEPT");
+    shell_exec(SQUID_IPTABLES_PATH . " -t filter -A $chain -p tcp -m tcp -s $ip --dport $port -j ACCEPT");
+}
+
 $isCli     = PHP_SAPI == "cli";
 $isPost    = false;
 $isSecure  = false;
