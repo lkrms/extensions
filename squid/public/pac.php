@@ -32,6 +32,7 @@ if ( ! isOnLan($srcIP))
     }
 
     // do we already have an authenticated session?
+    // TODO: check server_name matches an active server (and retain in wan_sessions)
     $q = $conn->prepare("select user_devices.username, user_devices.serial_number, user_devices.user_guid, wan_sessions.session_id, wan_sessions.proxy_port,
 	(select group_concat(distinct proxy_port separator ',') from wan_sessions where ip_address = ? and expiry_time_utc > ADDTIME(UTC_TIMESTAMP(), '0:00:05') group by ip_address) as used_ports
 from user_devices

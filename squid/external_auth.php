@@ -116,6 +116,7 @@ while ( ! feof(STDIN))
     // get client IP and MAC for starters
     $input  = explode(" ", $inputStr);
     $srcIP  = $input[0];
+    $onLan  = true;
 
     // we could do more sanity checks here, but Squid is a trustworthy input source
     if ( ! $srcIP)
@@ -125,37 +126,45 @@ while ( ! feof(STDIN))
         continue;
     }
 
-    $arp      = `arp -n $srcIP`;
-    $matches  = array();
-
-    if (preg_match("/(([0-9a-f]{1,2}:){5}[0-9a-f]{1,2})/i", $arp, $matches))
+    if (isOnLan($srcIP))
     {
-        // ensure the MAC address is 17 characters long (OS X hosts don't add leading zeroes)
-        $macBytes  = explode(":", strtolower($matches[0]));
-        $mac       = "";
+        $arp      = `arp -n $srcIP`;
+        $matches  = array();
 
-        foreach ($macBytes as $macByte)
+        if (preg_match("/(([0-9a-f]{1,2}:){5}[0-9a-f]{1,2})/i", $arp, $matches))
         {
-            if ($mac)
-            {
-                $mac .= ":";
-            }
+            // ensure the MAC address is 17 characters long (OS X hosts don't add leading zeroes)
+            $macBytes  = explode(":", strtolower($matches[0]));
+            $mac       = "";
 
-            if (strlen($macByte) == 2)
+            foreach ($macBytes as $macByte)
             {
-                $mac .= $macByte;
+                if ($mac)
+                {
+                    $mac .= ":";
+                }
+
+                if (strlen($macByte) == 2)
+                {
+                    $mac .= $macByte;
+                }
+                else
+                {
+                    $mac .= "0$macByte";
+                }
             }
-            else
-            {
-                $mac .= "0$macByte";
-            }
+        }
+        else
+        {
+            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to determine client MAC address.\"");
+
+            continue;
         }
     }
     else
     {
-        writeReply(SQUID_FAILURE_CODE . " message=\"Unable to determine client MAC address.\"");
-
-        continue;
+        $mac    = null;
+        $onLan  = false;
     }
 
     $port = null;
@@ -167,8 +176,22 @@ while ( ! feof(STDIN))
         array_splice($input, 1, 1);
     }
 
+    if (is_null($mac))
+    {
+        if (is_null($port))
+        {
+            writeReply(SQUID_FAILURE_CODE . " message=\"Unable to determine client MAC address or service port.\"");
+
+            continue;
+        }
+        else
+        {
+            $mac = $port;
+        }
+    }
+
     // is Squid telling us that other authentication has passed?
-    if (isset($input[1]) && substr($input[1], 0, 2) == "__")
+    if ($onLan && isset($input[1]) && substr($input[1], 0, 2) == "__")
     {
         writeReply("OK");
 
@@ -208,7 +231,7 @@ while ( ! feof(STDIN))
         // try devices table first
         $servers = array_keys($SQUID_PM_DB);
 
-        if ($servers)
+        if ($onLan && $servers)
         {
             $rs = mysqli_query($mconn, "select username, server_name from user_devices where mac_address = '$mac' and (server_name in ('" . implode("', '", $servers) . "') or server_name is null) order by line_id desc");
 
@@ -229,9 +252,24 @@ while ( ! feof(STDIN))
         }
 
         // next, ad-hoc sessions
-        if ( ! $un)
+        if ($onLan && ! $un)
         {
             $rs = mysqli_query($mconn, "select username, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), expiry_time_utc) as ttl from auth_sessions where mac_address = '$mac' and ip_address = '$srcIP' and expiry_time_utc > UTC_TIMESTAMP()");
+
+            if ($rs && ($row = $rs->fetch_row()))
+            {
+                $un = $row[0];
+
+                // enforce the session expiry time
+                $ttl = $row[1] + 0;
+            }
+        }
+
+        // finally, WAN sessions
+        if ( ! $onLan && ! $un)
+        {
+            // TODO: check against active $servers, load alternate LDAP settings
+            $rs = mysqli_query($mconn, "select username, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), expiry_time_utc) as ttl from wan_sessions where proxy_port = $port and ip_address = '$srcIP' and expiry_time_utc > UTC_TIMESTAMP()");
 
             if ($rs && ($row = $rs->fetch_row()))
             {
