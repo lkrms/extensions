@@ -166,6 +166,21 @@ function getUserGroups($username, $checkEnabled = true, $globalAd = true, $ldapS
     return $groups;
 }
 
+function renewWanSession($sessionId, $conn = null)
+{
+    if (is_null($conn))
+    {
+        $conn = new mysqli(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_DB_NAME);
+
+        if (mysqli_connect_error())
+        {
+            exit ("Unable to connect to database. " . mysqli_connect_error());
+        }
+    }
+
+    $conn->query("update wan_sessions set expiry_time_utc = ADDTIME(UTC_TIMESTAMP(), '" . SQUID_WAN_SESSION_DURATION . "') where session_id = $sessionId");
+}
+
 function iptablesUpdate()
 {
     global $iptablesConn;

@@ -143,6 +143,6 @@ define("SQUID_IPTABLES_WAN_ACCESS_CHAIN", "squid_wan_access");
 $SQUID_WAN_PORTS = range(3130, 3149);
 
 // sessions start (and renew) on PAC file request
-define("SQUID_WAN_SESSION_DURATION", "0:10");
+define("SQUID_WAN_SESSION_DURATION", "24:00");
 
 ?>

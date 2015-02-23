@@ -93,7 +93,7 @@ values ('" . $conn->escape_string($username) . "', '" . $conn->escape_string($se
     }
     else
     {
-        $conn->query("update wan_sessions set expiry_time_utc = ADDTIME(UTC_TIMESTAMP(), '" . SQUID_WAN_SESSION_DURATION . "') where session_id = $sessionId");
+        renewWanSession($sessionId, $conn);
     }
 
     $pacFile         = SQUID_ROOT . "/pac.wan.js";
