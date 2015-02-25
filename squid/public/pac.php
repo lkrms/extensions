@@ -31,6 +31,8 @@ if ( ! isOnLan($srcIP))
         exit ("Unable to connect to database. " . mysqli_connect_error());
     }
 
+    getLock();
+
     // do we already have an authenticated session?
     // TODO: check server_name matches an active server (and retain in wan_sessions)
     $q = $conn->prepare("select user_devices.username, user_devices.serial_number, user_devices.user_guid, wan_sessions.session_id, wan_sessions.proxy_port,
@@ -41,6 +43,7 @@ where user_devices.user_guid = ? and user_devices.serial_number = ?");
 
     if ( ! $q)
     {
+        releaseLock();
         exit ("Unable to query the database.");
     }
 
@@ -48,6 +51,7 @@ where user_devices.user_guid = ? and user_devices.serial_number = ?");
 
     if ( ! $q->execute())
     {
+        releaseLock();
         exit ("Unable to query the database.");
     }
 
@@ -55,6 +59,7 @@ where user_devices.user_guid = ? and user_devices.serial_number = ?");
 
     if ( ! $q->fetch())
     {
+        releaseLock();
         exit ("Unknown device.");
     }
 
@@ -78,6 +83,7 @@ where user_devices.user_guid = ? and user_devices.serial_number = ?");
 
         if (is_null($proxyPort))
         {
+            releaseLock();
             exit ("No spare WAN ports for this IP address.");
         }
 
@@ -88,6 +94,7 @@ values ('" . $conn->escape_string($username) . "', '" . $conn->escape_string($se
         }
         else
         {
+            releaseLock();
             exit ("Error creating session.");
         }
     }
@@ -96,6 +103,7 @@ values ('" . $conn->escape_string($username) . "', '" . $conn->escape_string($se
         renewWanSession($sessionId, $conn);
     }
 
+    releaseLock();
     $pacFile         = SQUID_ROOT . "/pac.wan.js";
     $subs["{PORT}"]  = $proxyPort;
 }

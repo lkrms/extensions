@@ -268,6 +268,8 @@ while ( ! feof(STDIN))
         // finally, WAN sessions
         if ( ! $onLan && ! $un)
         {
+            getLock();
+
             // TODO: check against active $servers, load alternate LDAP settings
             $rs = mysqli_query($mconn, "select username, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), expiry_time_utc) as ttl, session_id from wan_sessions where proxy_port = $port and ip_address = '$srcIP' and expiry_time_utc > UTC_TIMESTAMP()");
 
@@ -281,6 +283,8 @@ while ( ! feof(STDIN))
                 // keep the session alive
                 renewWanSession($row[2], $mconn);
             }
+
+            releaseLock();
         }
 
         if ( ! $un)
