@@ -19,6 +19,9 @@ require_once (SQUID_ROOT . "/../lib/php/Mail/mime.php");
 // required for date() calls
 date_default_timezone_set(SQUID_TIMEZONE);
 
+// used during authentication etc.
+define("SQUID_LOCK_FILE", SQUID_ROOT . "/.lock");
+
 function _post($name, $default = "")
 {
     if (isset($_POST[$name]))
@@ -164,6 +167,29 @@ function getUserGroups($username, $checkEnabled = true, $globalAd = true, $ldapS
     }
 
     return $groups;
+}
+
+function getLock()
+{
+    global $lockFile;
+    $lockFile = fopen(SQUID_LOCK_FILE, "w+");
+
+    if ($lockFile === false)
+    {
+        exit ("Unable to open " . SQUID_LOCK_FILE . " for writing.");
+    }
+
+    if ( ! flock($lockFile, LOCK_EX))
+    {
+        exit ("Unable to obtain a lock on: " . SQUID_LOCK_FILE);
+    }
+}
+
+function releaseLock()
+{
+    global $lockFile;
+    flock($lockFile, LOCK_UN);
+    fclose($lockFile);
 }
 
 function renewWanSession($sessionId, $conn = null)
