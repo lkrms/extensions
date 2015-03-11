@@ -16,6 +16,12 @@ $SQUID_LAN_SUBNETS = array(
 // where to direct users if something breaks
 define("SQUID_SUPPORT_URL", "http://helpdesk.mydomain.com/");
 
+// used for fun things like page unblock requests
+define("SQUID_SUPPORT_EMAIL", "helpdesk@mydomain.com");
+
+// appended to usernames during unblock requests
+define("SQUID_EMAIL_DOMAIN", "mydomain.com");
+
 // where to send users if the authentication portal can't find a usable referer
 define("SQUID_DEFAULT_REDIRECT", "http://www.mydomain.com/");
 
