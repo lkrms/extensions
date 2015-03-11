@@ -54,7 +54,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
             if (@ldap_bind($ad, $un . '@' . LDAP_DOMAIN, $pw))
             {
                 // authentication succeeded; now to look up our target user
-                if ( ! $ls = @ldap_search($ad, LDAP_BASE_DN, "(sAMAccountName=$tun)", array("givenName", "sn")))
+                if ( ! $ls = @ldap_search($ad, LDAP_BASE_DN, "(sAMAccountName=$tun)", array("displayName", "mail")))
                 {
                     $errors[]    = "Unable to request data from LDAP server.";
                     $ldap_error  = ldap_error($ad);
@@ -74,10 +74,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
                     }
                     else
                     {
-                        $dn     = $le[0]["dn"];
-                        $first  = $le[0]["givenname"][0];
-                        $last   = $le[0]["sn"][0];
-                        $npw    = createPassword();
+                        $dn           = $le[0]["dn"];
+                        $displayName  = $le[0]["displayname"][0];
+                        $email        = $le[0]["mail"][0];
+                        $npw          = createPassword();
 
                         // Active Directory is more likely to support unicodePwd than than userPassword
                         $npw_encoded  = mb_convert_encoding('"' . $npw . '"', "UTF-16LE");
@@ -85,13 +85,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
 
                         if (@ldap_mod_replace($ad, $dn, $attributes))
                         {
-                            $feedback .= "<p style='color:#090'>Password successfully reset for $first $last. New password:</p>";
+                            $feedback .= "<p style='color:#090'>Password successfully reset for $displayName. New password:</p>";
                             $feedback .= "<h3 style='color:#090'>$npw</h3>";
-                            $tun       = "";
+
+                            if ($email)
+                            {
+                                mail("$displayName <$mail>", "Your account password was just reset", "Hi $displayName,
+
+Your new password for your account ($tun) is: $npw
+
+It was reset by: $un
+
+Thank you!");
+                            }
+
+                            $tun = "";
                         }
                         else
                         {
-                            $errors[]    = "Unable to reset password for $first $last. You may not be authorised for this operation.";
+                            $errors[]    = "Unable to reset password for $displayName. You may not be authorised for this operation.";
                             $ldap_error  = ldap_error($ad);
                             $ldap_errno  = ldap_errno($ad);
                         }
