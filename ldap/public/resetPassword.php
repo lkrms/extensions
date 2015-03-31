@@ -92,11 +92,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
                             {
                                 mail("$displayName <$email>", "Your account password was just reset", "Hi $displayName,
 
-Your new password for your account ($tun) is: $npw
+The new password for your account is: $npw
 
 It was reset by: $un
 
-Thank you!");
+Thank you!", "From: " . LDAP_EMAIL_FROM);
                             }
 
                             $tun = "";

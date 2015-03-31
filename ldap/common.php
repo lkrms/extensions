@@ -26,7 +26,7 @@ function _get($name, $default = "")
 
 function createPassword($length = LDAP_PASSWORD_LENGTH)
 {
-    $chr     = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    $chr     = "2345789ABCDEFGHJKLMNPQRSTUVWXYZacdefghijkmnpqrstuvwxyz2345789";
     $chrLen  = strlen($chr);
 
     do
