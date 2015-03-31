@@ -4,7 +4,7 @@ define("LDAP_ROOT", dirname(__file__) . "/..");
 require_once (LDAP_ROOT . "/common.php");
 
 // die silently if this isn't a secure request
-if (empty($_SERVER["HTTPS"]))
+if ($_SERVER["SERVER_NAME"] != "localhost" && empty($_SERVER["HTTPS"]))
 {
     exit;
 }

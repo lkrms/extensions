@@ -4,7 +4,7 @@ define("LDAP_ROOT", dirname(__file__) . "/..");
 require_once (LDAP_ROOT . "/common.php");
 
 // die silently if this isn't a secure request
-if (empty($_SERVER["HTTPS"]))
+if ($_SERVER["SERVER_NAME"] != "localhost" && empty($_SERVER["HTTPS"]))
 {
     exit;
 }
@@ -90,7 +90,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
 
                             if ($email)
                             {
-                                mail("$displayName <$mail>", "Your account password was just reset", "Hi $displayName,
+                                mail("$displayName <$email>", "Your account password was just reset", "Hi $displayName,
 
 Your new password for your account ($tun) is: $npw
 
