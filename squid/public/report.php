@@ -17,10 +17,11 @@ $lines    = array();
 $headers  = array();
 
 // retrieve particulars from the submission
-$url         = _post("url");
-$incidentId  = _post("incident_id");
-$username    = _post("username");
-$ipAddress   = _post("ip_address");
+$url            = _post("url");
+$incidentId     = _post("incident_id");
+$username       = _post("username");
+$ipAddress      = _post("ip_address");
+$blockedReason  = _post("blocked_reason");
 
 if ( ! $url)
 {
@@ -28,6 +29,11 @@ if ( ! $url)
 }
 
 $lines[] = "URL: $url";
+
+if ($blockedReason)
+{
+    $lines[] = "Blocked reason: $blockedReason";
+}
 
 if ($incidentId)
 {
