@@ -114,7 +114,7 @@ FROM devices
 	INNER JOIN users ON devices.user_id = users.id
 WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
 	AND devices.token IS NOT NULL
-	AND devices.last_checkin_time >= NOW() AT TIME ZONE 'UTC' - INTERVAL '5 days'");
+	AND devices.last_checkin_time >= NOW() AT TIME ZONE 'UTC' - INTERVAL '3 months'");
 
     if ($prs === false)
     {
