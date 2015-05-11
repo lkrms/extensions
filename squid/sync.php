@@ -66,6 +66,9 @@ $macs     = array();
 $deleted  = 0;
 $added    = 0;
 
+// if true, auth_negotiate_macs will be re-written
+$macAddressesChanged = false;
+
 foreach ($SQUID_PM_DB as $pmId => $pmDb)
 {
     if (isset($pmDb["NO_SYNC"]) && $pmDb["NO_SYNC"])
@@ -174,6 +177,91 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
 
         $added++;
     }
+
+    // PART 2
+    //
+    // retrieve cached device records
+    $rs = mysqli_query($conn, "SELECT line_id, mac_address, auth_negotiate FROM mac_addresses WHERE server_name = '" . mysqli_real_escape_string($conn, $pmId) . "'");
+
+    if ($rs === false)
+    {
+        // TODO: something more decisive here
+        continue;
+    }
+
+    $toDelete  = array();
+    $toAdd     = array();
+
+    while ($row = mysqli_fetch_row($rs))
+    {
+        $toDelete[$row[0]] = array(strtolower(trim($row[1])), strtoupper(trim($row[2])));
+    }
+
+    mysqli_free_result($rs);
+
+    // limit ourselves to unassigned Macs
+    $prs = pg_query($pconn, "SELECT \"WiFiMAC\", \"EthernetMAC\"
+FROM devices
+WHERE mdm_target_type IN ('mac')
+    AND token IS NOT NULL
+    AND user_id IS NULL");
+
+    if ($prs === false)
+    {
+        // TODO: add log entry / email notification here
+        continue;
+    }
+
+    while ($row = pg_fetch_row($prs))
+    {
+        $mac   = strtolower(trim($row[0]));
+        $mac2  = strtolower(trim($row[1]));
+
+        if ($mac)
+        {
+            processMACRecord($mac, "Y");
+        }
+
+        if ($mac2)
+        {
+            processMACRecord($mac2, "Y");
+        }
+    }
+
+    // delete invalid device records from cache
+    $q = mysqli_prepare($conn, "DELETE FROM mac_addresses WHERE line_id = ?");
+    mysqli_stmt_bind_param($q, "i", $lineId);
+
+    // $toDelete is keyed on line_id
+    $lineIds = array_keys($toDelete);
+
+    foreach ($lineIds as $lineId)
+    {
+        if (mysqli_stmt_execute($q) === false)
+        {
+            exit ("Unable to delete cached device record: " . mysqli_error());
+        }
+
+        $deleted++;
+        $macAddressesChanged = true;
+    }
+
+    // add new device records to cache
+    $q = mysqli_prepare($conn, "INSERT INTO mac_addresses (server_name, mac_address, auth_negotiate) VALUES (?, ?, ?)");
+    mysqli_stmt_bind_param($q, "sss", $pmId, $mac, $auth_neg);
+
+    foreach ($toAdd as $device)
+    {
+        list ($mac, $auth_neg) = $device;
+
+        if (mysqli_stmt_execute($q) === false)
+        {
+            exit ("Unable to create cached device record: " . mysqli_error());
+        }
+
+        $added++;
+        $macAddressesChanged = true;
+    }
 }
 
 writeLog("Profile Manager sync completed. Added: $added; deleted: $deleted");
@@ -279,7 +367,7 @@ select hmMAC from hostMAC where hmHostID in (select hostID from hosts where host
 
 writeLog("FOG sync completed. Added: $added; deleted: $deleted");
 
-if ($added + $deleted > 0)
+if ($macAddressesChanged || ($added + $deleted > 0))
 {
     $rs = mysqli_query($conn, "SELECT mac_address FROM mac_addresses WHERE auth_negotiate = 'Y' ORDER BY mac_address");
 
