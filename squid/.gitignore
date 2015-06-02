@@ -1,5 +1,5 @@
 .lock
 auth_negotiate_macs
 config.php
-pac.lan.js
-pac.wan.js
+pac.*.js
+-*.default.*

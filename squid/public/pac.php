@@ -115,7 +115,7 @@ values ('" . $conn->escape_string($username) . "', '" . $conn->escape_string($se
             {
                 if (isset($SQUID_CUSTOM_PAC) && is_array($SQUID_CUSTOM_PAC) && array_key_exists($userGroup, $SQUID_CUSTOM_PAC))
                 {
-                    $pacFile = $SQUID_CUSTOM_PAC[$userGroup];
+                    $pacFile = SQUID_ROOT . "/" . $SQUID_CUSTOM_PAC[$userGroup];
 
                     break;
                 }
