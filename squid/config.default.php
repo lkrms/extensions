@@ -16,7 +16,7 @@ $SQUID_LAN_SUBNETS = array(
 // if users in a particular group require a custom PAC file, declare it here
 // NOTE: only applies when requested from WAN
 $SQUID_CUSTOM_PAC = array(
-    "CN=Special Group,OU=Groups,DC=mydomain,DC=local" => "custom.wan.js",
+    "CN=Special Group,OU=Groups,DC=mydomain,DC=local" => "pac.custom.js",
 );
 
 // where to direct users if something breaks
