@@ -155,23 +155,26 @@ if ( ! $loggedIn && $isPost)
                 $allowed  = false;
                 $groups   = getUserGroups($un, true, false);
 
-                foreach ($SQUID_LDAP_GROUP_PERMISSIONS as $groupDN => $groupPermissions)
+                if (is_array($groups))
                 {
-                    if (in_array($groupDN, $groups) && (( ! $register && $groupPermissions["ALLOW_SESSION"]) || ($register && $groupPermissions["ALLOW_DEVICE_REGISTRATION"])))
+                    foreach ($SQUID_LDAP_GROUP_PERMISSIONS as $groupDN => $groupPermissions)
                     {
-                        $allowed = true;
-
-                        if ( ! $register && isset($groupPermissions["SESSION_DURATION"]))
+                        if (in_array($groupDN, $groups) && (( ! $register && $groupPermissions["ALLOW_SESSION"]) || ($register && $groupPermissions["ALLOW_DEVICE_REGISTRATION"])))
                         {
-                            $sessionTime = $groupPermissions["SESSION_DURATION"];
-                        }
+                            $allowed = true;
 
-                        if (isset($groupPermissions["ALLOW_NO_PROXY"]) && $groupPermissions["ALLOW_NO_PROXY"])
-                        {
-                            $proxyEnforced = false;
-                        }
+                            if ( ! $register && isset($groupPermissions["SESSION_DURATION"]))
+                            {
+                                $sessionTime = $groupPermissions["SESSION_DURATION"];
+                            }
 
-                        break;
+                            if (isset($groupPermissions["ALLOW_NO_PROXY"]) && $groupPermissions["ALLOW_NO_PROXY"])
+                            {
+                                $proxyEnforced = false;
+                            }
+
+                            break;
+                        }
                     }
                 }
             }

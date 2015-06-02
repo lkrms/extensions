@@ -13,6 +13,12 @@ $SQUID_LAN_SUBNETS = array(
     "192.168.0.0/255.255.0.0",
 );
 
+// if users in a particular group require a custom PAC file, declare it here
+// NOTE: only applies when requested from WAN
+$SQUID_CUSTOM_PAC = array(
+    "CN=Special Group,OU=Groups,DC=mydomain,DC=local" => "custom.wan.js",
+);
+
 // where to direct users if something breaks
 define("SQUID_SUPPORT_URL", "http://helpdesk.mydomain.com/");
 

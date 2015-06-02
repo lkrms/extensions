@@ -31,6 +31,7 @@ if ( ! isOnLan($srcIP))
         exit ("Unable to connect to database. " . mysqli_connect_error());
     }
 
+    $pacFile = SQUID_ROOT . "/pac.blocked.js";
     getLock();
 
     // do we already have an authenticated session?
@@ -57,55 +58,75 @@ where user_devices.user_guid = ? and user_devices.serial_number = ?");
 
     $q->bind_result($username, $serialNumber, $userGuid, $sessionId, $proxyPort, $usedPorts);
 
-    if ( ! $q->fetch())
+    if ($q->fetch())
     {
-        releaseLock();
-        exit ("Unknown device.");
-    }
+        $q->close();
 
-    $q->close();
-
-    if (is_null($sessionId))
-    {
-        // no session, but a matching device record was found, so we're ready to authorise a new session
-        $usedPorts = explode(",", $usedPorts);
-
-        // first, identify a spare port
-        foreach ($SQUID_WAN_PORTS as $port)
+        if (is_null($sessionId))
         {
-            if ( ! in_array($port, $usedPorts))
+            // no session, but a matching device record was found, so we're ready to authorise a new session
+            $usedPorts = explode(",", $usedPorts);
+
+            // first, identify a spare port
+            foreach ($SQUID_WAN_PORTS as $port)
             {
-                $proxyPort = $port;
+                if ( ! in_array($port, $usedPorts))
+                {
+                    $proxyPort = $port;
 
-                break;
+                    break;
+                }
             }
-        }
 
-        if (is_null($proxyPort))
-        {
-            releaseLock();
-            exit ("No spare WAN ports for this IP address.");
-        }
+            if (is_null($proxyPort))
+            {
+                releaseLock();
+                exit ("No spare WAN ports for this IP address.");
+            }
 
-        if ($conn->query("insert into wan_sessions (username, serial_number, ip_address, proxy_port, auth_time_utc, expiry_time_utc)
+            if ($conn->query("insert into wan_sessions (username, serial_number, ip_address, proxy_port, auth_time_utc, expiry_time_utc)
 values ('" . $conn->escape_string($username) . "', '" . $conn->escape_string($serialNumber) . "', '$srcIP', $proxyPort, UTC_TIMESTAMP(), ADDTIME(UTC_TIMESTAMP(), '" . SQUID_WAN_SESSION_DURATION . "'))"))
-        {
-            iptablesAddWanUser($srcIP, $proxyPort);
+            {
+                iptablesAddWanUser($srcIP, $proxyPort);
+            }
+            else
+            {
+                releaseLock();
+                exit ("Error creating session.");
+            }
         }
         else
         {
-            releaseLock();
-            exit ("Error creating session.");
+            renewWanSession($sessionId, $conn);
+        }
+
+        releaseLock();
+
+        // check that our user is active, and hand out a custom PAC if required
+        $userGroups = getUserGroups($username, true, false);
+
+        // if $userGroups === FALSE, the user is inactive (or we encountered an LDAP error)
+        if (is_array($userGroups))
+        {
+            $pacFile         = SQUID_ROOT . "/pac.wan.js";
+            $subs["{PORT}"]  = $proxyPort;
+
+            foreach ($userGroups as $userGroup)
+            {
+                if (isset($SQUID_CUSTOM_PAC) && is_array($SQUID_CUSTOM_PAC) && array_key_exists($userGroup, $SQUID_CUSTOM_PAC))
+                {
+                    $pacFile = $SQUID_CUSTOM_PAC[$userGroup];
+
+                    break;
+                }
+            }
         }
     }
     else
     {
-        renewWanSession($sessionId, $conn);
+        $q->close();
+        releaseLock();
     }
-
-    releaseLock();
-    $pacFile         = SQUID_ROOT . "/pac.wan.js";
-    $subs["{PORT}"]  = $proxyPort;
 }
 
 if ( ! file_exists($pacFile))
