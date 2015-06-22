@@ -85,10 +85,10 @@ select ost_staff.firstname,
 from ost_ticket
     inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
     inner join ost_user on ost_ticket.user_id = ost_user.id
-    left join ost_ticket_priority on ost_ticket__cdata.priority_id = ost_ticket_priority.priority_id
+    left join ost_ticket_priority on ost_ticket__cdata.priority = ost_ticket_priority.priority_id
     left join ost_help_topic on ost_ticket.topic_id = ost_help_topic.topic_id
     inner join ost_staff on ost_ticket.dept_id = ost_staff.dept_id
-where ost_ticket.status <> 'closed'
+where ost_ticket.status_id = 1
     and ost_staff.isactive = 1
     and ost_staff.onvacation = 0
     and ost_staff.assigned_only = 0
@@ -116,10 +116,10 @@ select ost_staff.firstname,
 from ost_ticket
     inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
     inner join ost_user on ost_ticket.user_id = ost_user.id
-    left join ost_ticket_priority on ost_ticket__cdata.priority_id = ost_ticket_priority.priority_id
+    left join ost_ticket_priority on ost_ticket__cdata.priority = ost_ticket_priority.priority_id
     left join ost_help_topic on ost_ticket.topic_id = ost_help_topic.topic_id
     inner join ost_staff on ost_ticket.staff_id = ost_staff.staff_id
-where ost_ticket.status <> 'closed'
+where ost_ticket.status_id = 1
     and ost_staff.isactive = 1
     and ost_staff.onvacation = 0
     and (ost_ticket.duedate <= now()
@@ -147,10 +147,10 @@ select ost_staff.firstname,
 from ost_ticket
     inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
     inner join ost_user on ost_ticket.user_id = ost_user.id
-    left join ost_ticket_priority on ost_ticket__cdata.priority_id = ost_ticket_priority.priority_id
+    left join ost_ticket_priority on ost_ticket__cdata.priority = ost_ticket_priority.priority_id
     left join ost_help_topic on ost_ticket.topic_id = ost_help_topic.topic_id
     inner join ost_staff on ost_ticket.staff_id = ost_staff.staff_id
-where ost_ticket.status <> 'closed'
+where ost_ticket.status_id = 1
     and ost_staff.isactive = 1
     and ost_staff.onvacation = 0
     and ost_ticket.duedate > now()
@@ -179,10 +179,10 @@ select ost_staff.firstname,
 from ost_ticket
     inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
     inner join ost_user on ost_ticket.user_id = ost_user.id
-    left join ost_ticket_priority on ost_ticket__cdata.priority_id = ost_ticket_priority.priority_id
+    left join ost_ticket_priority on ost_ticket__cdata.priority = ost_ticket_priority.priority_id
     left join ost_help_topic on ost_ticket.topic_id = ost_help_topic.topic_id
     inner join ost_staff on ost_ticket.staff_id = ost_staff.staff_id
-where ost_ticket.status <> 'closed'
+where ost_ticket.status_id = 1
     and ost_staff.isactive = 1
     and ost_staff.onvacation = 0
     and (ost_ticket.duedate is null
