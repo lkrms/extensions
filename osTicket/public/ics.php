@@ -12,8 +12,13 @@ function AddCalendarEvent( array $r, array & $arr)
 {
     global $ostSettings, $isUser;
 
-    // for clarity, some events are marked "DUE:"
+    // for clarity, some events are marked "DUE:" or "[UNASSIGNED]"
     $subjectPrefix = "";
+
+    if ($r["staff_id"] == 0)
+    {
+        $subjectPrefix = "[UNASSIGNED] ";
+    }
 
     // see http://www.kanzaki.com/docs/ical/duration-t.html
     $alarmTime = "-PT30M";
@@ -30,17 +35,17 @@ function AddCalendarEvent( array $r, array & $arr)
     {
         // use the DATE data type
         $arr[]          = "DTSTART:" . date("Ymd", strtotime($r["duedate"]));
-        $subjectPrefix  = "DUE: ";
+        $subjectPrefix .= "DUE: ";
         $alarmTime      = UTCDateTime($r["duedate"], - 40 * 60 * 60);
     }
     else
     {
-        $arr[]  = "DTSTART:" . UTCDateTime($r["duedate"]);
-        $arr[]  = "DTEND:" . UTCDateTime($r["duedate"], OST_ICS_EVENT_DURATION * 60);
+        $arr[]  = "DTSTART:" . UTCDateTime($r["duedate"], - OST_ICS_EVENT_DURATION * 60);
+        $arr[]  = "DTEND:" . UTCDateTime($r["duedate"]);
     }
 
     $arr[]  = "SUMMARY:{$subjectPrefix}$r[subject]";
-    $arr[]  = "DESCRIPTION:Requested by $r[name] in " . OST_TICKET_SINGULAR . " #$r[ticketID]." . ($isUser ? "" : " Currently assigned to $r[firstname] $r[lastname].");
+    $arr[]  = "DESCRIPTION:Requested by $r[name] in " . OST_TICKET_SINGULAR . " #$r[ticketID]." . ($isUser || $r["staff_id"] == 0 ? "" : " Currently assigned to $r[firstname] $r[lastname].");
     $arr[]  = "CREATED:" . UTCDateTime($r["created"]);
     $arr[]  = "LAST-MODIFIED:" . UTCDateTime($r["updated"]);
     $arr[]  = "URL:$ostSettings[helpdesk_url]scp/tickets.php?id=$r[ticket_id]";
@@ -101,7 +106,7 @@ $isUser  = false;
 if ( ! OST_CLI && $userId = _get("user"))
 {
     $userId  = StringToInt($userId, "Invalid user ID.");
-    $rs      = $db->query("select firstname, lastname from ost_staff where staff_id = $userId");
+    $rs      = $db->query("select firstname, lastname, dept_id from ost_staff where staff_id = $userId");
 
     if ( ! ($r = $rs->fetch_assoc()))
     {
@@ -110,7 +115,7 @@ if ( ! OST_CLI && $userId = _get("user"))
 
     $rs->close();
     $name    = "$r[firstname] $r[lastname] at $name";
-    $sql     = "and ost_ticket.staff_id = " . $userId;
+    $sql     = "and (ost_ticket.staff_id = " . $userId . " or (ost_ticket.staff_id = 0 and ost_ticket.dept_id = " . $r["dept_id"] . "))";
     $isUser  = true;
 }
 elseif ( ! OST_CLI && $deptId = _get("dept"))
@@ -137,6 +142,7 @@ select ost_staff.firstname,
     ost_staff.email,
     ost_ticket.ticket_id,
     ost_ticket.number as ticketID,
+    ost_ticket.staff_id,
     ost_user.name,
     ost_ticket__cdata.subject,
     ost_ticket.duedate,
@@ -145,7 +151,7 @@ select ost_staff.firstname,
 from ost_ticket
     inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
     inner join ost_user on ost_ticket.user_id = ost_user.id
-    inner join ost_staff on ost_ticket.staff_id = ost_staff.staff_id
+    left join ost_staff on ost_ticket.staff_id = ost_staff.staff_id
 where ost_ticket.status_id = 1
     and ost_ticket.duedate is not null
     $sql");
