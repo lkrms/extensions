@@ -222,7 +222,7 @@ function ShortName($fullName)
 function UTCDateTime($dateString, $addSeconds = 0)
 {
     // work in the local time zone for starters
-    $ts  = strtotime($dateString) += $addSeconds;
+    $ts  = strtotime($dateString) + $addSeconds;
     $tz  = date_default_timezone_get();
     date_default_timezone_set("UTC");
     $utc = date('Ymd\THis\Z', $ts);
