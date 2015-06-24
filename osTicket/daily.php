@@ -122,7 +122,7 @@ from ost_ticket
 where ost_ticket.status_id = 1
     and ost_staff.isactive = 1
     and ost_staff.onvacation = 0
-    and (ost_ticket.duedate <= now()
+    and (date(ost_ticket.duedate) <= curdate()
     or ost_ticket.isoverdue <> 0)
 order by email, duedate desc, priority_urgency, created
 "), $today);
@@ -153,8 +153,8 @@ from ost_ticket
 where ost_ticket.status_id = 1
     and ost_staff.isactive = 1
     and ost_staff.onvacation = 0
-    and ost_ticket.duedate > now()
-    and ost_ticket.duedate < adddate(curdate(), " . (OST_UPCOMING_DAYS + 1) . ")
+    and date(ost_ticket.duedate) > curdate()
+    and date(ost_ticket.duedate) < adddate(curdate(), " . (OST_UPCOMING_DAYS + 1) . ")
     and ost_ticket.isoverdue = 0
 order by email, duedate, priority_urgency, created
 "), $upcoming);
@@ -186,7 +186,7 @@ where ost_ticket.status_id = 1
     and ost_staff.isactive = 1
     and ost_staff.onvacation = 0
     and (ost_ticket.duedate is null
-    or ost_ticket.duedate >= adddate(curdate(), " . (OST_UPCOMING_DAYS + 1) . "))
+    or date(ost_ticket.duedate) >= adddate(curdate(), " . (OST_UPCOMING_DAYS + 1) . "))
     and ost_ticket.isoverdue = 0
     and ost_ticket_priority.priority_urgency <= " . OST_MAX_URGENCY . "
 order by email, duedate, priority_urgency, created

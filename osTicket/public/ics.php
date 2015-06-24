@@ -146,7 +146,7 @@ from ost_ticket
     inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
     inner join ost_user on ost_ticket.user_id = ost_user.id
     inner join ost_staff on ost_ticket.staff_id = ost_staff.staff_id
-where ost_ticket.status <> 'closed'
+where ost_ticket.status_id = 1
     and ost_ticket.duedate is not null
     $sql");
 
