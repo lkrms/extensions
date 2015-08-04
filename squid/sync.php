@@ -269,7 +269,7 @@ writeLog("Profile Manager sync completed. Added: $added; deleted: $deleted");
 // now, sync device records from FOG
 if ( ! is_array($SQUID_FOG_DB))
 {
-    exit;
+    $SQUID_FOG_DB = array();
 }
 
 $macs     = array();
@@ -392,8 +392,14 @@ if ($macAddressesChanged || ($added + $deleted > 0))
     // TODO: reload Squid here
 }
 
+// clean up any session/device records that have been supplanted by Profile Manager or FOG records
+mysqli_query($conn, "DELETE FROM user_devices WHERE server_name IS NULL AND mac_address IN (SELECT mac_address FROM mac_addresses UNION SELECT mac_address FROM user_devices WHERE server_name IS NOT NULL)");
+mysqli_query($conn, "DELETE FROM auth_sessions WHERE expiry_time_utc > UTC_TIMESTAMP() AND mac_address IN (SELECT mac_address FROM mac_addresses UNION SELECT mac_address FROM user_devices WHERE server_name IS NOT NULL)");
+
 // clean up all of the iptables chains we administer
+getLock();
 iptablesUpdate();
+releaseLock();
 
 // PRETTY_NESTED_ARRAYS,0
 

@@ -287,7 +287,7 @@ function iptablesGetDbMacs($proxyEnforced = true)
     $noProxy  = $proxyEnforced ? 'N' : 'Y';
     $rs       = $iptablesConn->query("select mac_address from auth_sessions where expiry_time_utc > UTC_TIMESTAMP() and no_proxy = '$noProxy'
 union
-select mac_address from user_devices where " . ($proxyEnforced ? "server_name is null and " : "") . "no_proxy = '$noProxy'");
+select mac_address from user_devices where no_proxy = '$noProxy'");
 
     if ( ! $rs)
     {
