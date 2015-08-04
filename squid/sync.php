@@ -393,8 +393,10 @@ if ($macAddressesChanged || ($added + $deleted > 0))
 }
 
 // clean up any session/device records that have been supplanted by Profile Manager or FOG records
-mysqli_query($conn, "DELETE FROM user_devices WHERE server_name IS NULL AND mac_address IN (SELECT mac_address FROM mac_addresses UNION SELECT mac_address FROM user_devices WHERE server_name IS NOT NULL)");
-mysqli_query($conn, "DELETE FROM auth_sessions WHERE expiry_time_utc > UTC_TIMESTAMP() AND mac_address IN (SELECT mac_address FROM mac_addresses UNION SELECT mac_address FROM user_devices WHERE server_name IS NOT NULL)");
+mysqli_multi_query($conn, "DELETE FROM auth_sessions WHERE expiry_time_utc > UTC_TIMESTAMP() AND mac_address IN (SELECT mac_address FROM mac_addresses UNION SELECT mac_address FROM user_devices WHERE server_name IS NOT NULL);
+CREATE TEMPORARY TABLE temp_user_devices SELECT line_id FROM user_devices WHERE server_name IS NULL AND mac_address IN (SELECT mac_address FROM mac_addresses UNION SELECT mac_address FROM user_devices WHERE server_name IS NOT NULL);
+DELETE FROM user_devices WHERE line_id IN (SELECT line_id FROM temp_user_devices);
+DROP TEMPORARY TABLE temp_user_devices");
 
 // clean up all of the iptables chains we administer
 getLock();
