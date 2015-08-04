@@ -163,12 +163,29 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
     }
 
     // add new device records to cache
-    $q = mysqli_prepare($conn, "INSERT INTO user_devices (server_name, mac_address, username, serial_number, user_guid) VALUES (?, ?, ?, ?, ?)");
-    mysqli_stmt_bind_param($q, "sssss", $pmId, $mac, $un, $sn, $guid);
+    $q = mysqli_prepare($conn, "INSERT INTO user_devices (server_name, mac_address, username, no_proxy, serial_number, user_guid) VALUES (?, ?, ?, ?, ?, ?)");
+    mysqli_stmt_bind_param($q, "ssssss", $pmId, $mac, $un, $noProxy, $sn, $guid);
 
     foreach ($toAdd as $device)
     {
         list ($mac, $un, $sn, $guid) = $device;
+
+        // TODO: allow for alternate LDAP particulars here
+        $groups   = getUserGroups($un, false, false);
+        $noProxy  = 'N';
+
+        if (is_array($groups))
+        {
+            foreach ($groups as $group)
+            {
+                if (isset($SQUID_LDAP_GROUP_PERMISSIONS[$group]['ALLOW_NO_PROXY']) && $SQUID_LDAP_GROUP_PERMISSIONS[$group]['ALLOW_NO_PROXY'])
+                {
+                    $noProxy = 'Y';
+
+                    break;
+                }
+            }
+        }
 
         if (mysqli_stmt_execute($q) === false)
         {
