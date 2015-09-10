@@ -25,6 +25,7 @@ foreach ($MSM4XX_AP as $name => $config)
         $substitutions = array(
     "{:NAME:}"           => $name,
     "{:SERIAL:}"         => $config["serial"],
+    "{:IP_ADDRESS:}"     => $config["ip"],
     "{:FREQUENCY:}"      => $MSM4XX_FREQ[$config["channel"]],
     "{:PHY_TYPE:}"       => $config["channel"] <= 13 ? "ieee802.11n-2ghz-bg-compatible" : "ieee802.11n-5ghz-a-compatible",
     "{:CHANNEL_WIDTH:}"  => $config["channel"] <= 13 ? "20MHz" : "auto",
