@@ -89,7 +89,7 @@ if (preg_match("/(([0-9a-f]{1,2}:){5}[0-9a-f]{1,2})/i", $arp, $matches))
 }
 else
 {
-    exit ("Unable to determine your hardware address. Are you on the right network?");
+    exit ("Unable to determine your hardware address. Are you on the right Wi-Fi network?");
 }
 
 // now, check for a device record or active session in the database
@@ -98,6 +98,14 @@ $conn = new mysqli(SQUID_DB_SERVER, SQUID_DB_USERNAME, SQUID_DB_PASSWORD, SQUID_
 if (mysqli_connect_error())
 {
     exit ("Unable to connect to session database. " . mysqli_connect_error());
+}
+
+// don't authenticate users who are supposed to be using Kerberos -- their device / session record will be destroyed on the next sync
+$rs = $conn->query("select count(*) from mac_addresses where mac_address = '$mac'");
+
+if ($rs && ($row = $rs->fetch_row()) && $row[0] > 0)
+{
+    exit ("This portal isn't supported on your device. Are you on the right Wi-Fi network?");
 }
 
 $servers = is_array($SQUID_PM_DB) ? array_keys($SQUID_PM_DB) : array();
