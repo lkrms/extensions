@@ -217,9 +217,9 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
     mysqli_free_result($rs);
 
     // limit ourselves to unassigned Macs
-    $prs = pg_query($pconn, "SELECT \"WiFiMAC\", \"EthernetMAC\"
+    $prs = pg_query($pconn, "SELECT mdm_target_type, \"WiFiMAC\", \"EthernetMAC\"
 FROM devices
-WHERE mdm_target_type IN ('mac')
+WHERE mdm_target_type IN ('mac', 'ios')
     AND token IS NOT NULL
     AND user_id IS NULL");
 
@@ -231,17 +231,24 @@ WHERE mdm_target_type IN ('mac')
 
     while ($row = pg_fetch_row($prs))
     {
-        $mac   = strtolower(trim($row[0]));
-        $mac2  = strtolower(trim($row[1]));
+        $type  = strtolower(trim($row[0]));
+        $mac   = strtolower(trim($row[1]));
+        $mac2  = strtolower(trim($row[2]));
+        $neg   = "Y";
+
+        if ($type == "ios")
+        {
+            $neg = "N";
+        }
 
         if ($mac)
         {
-            processMACRecord($mac, "Y");
+            processMACRecord($mac, $neg);
         }
 
         if ($mac2)
         {
-            processMACRecord($mac2, "Y");
+            processMACRecord($mac2, $neg);
         }
     }
 
@@ -405,6 +412,25 @@ if ($macAddressesChanged || ($added + $deleted > 0))
 
     // generate up-to-date MAC database for Squid
     file_put_contents(SQUID_ROOT . "/auth_negotiate_macs", implode("\n", $macs));
+    $rs = mysqli_query($conn, "SELECT mac_address FROM mac_addresses WHERE auth_negotiate <> 'Y' ORDER BY mac_address");
+
+    if ($rs === false)
+    {
+        // TODO: something more decisive here
+        exit;
+    }
+
+    $macs = array();
+
+    while ($row = mysqli_fetch_row($rs))
+    {
+        $macs[] = strtolower(trim($row[0]));
+    }
+
+    mysqli_free_result($rs);
+
+    // generate up-to-date MAC database for Squid
+    file_put_contents(SQUID_ROOT . "/other_macs", implode("\n", $macs));
 
     // TODO: reload Squid here
 }
