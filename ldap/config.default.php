@@ -8,6 +8,15 @@ define("LDAP_BASE_DN", "DC=mydomain,DC=local");
 define("LDAP_ADMIN_USER_DN", "CN=Account Operator,OU=Users,DC=mydomain,DC=local");
 define("LDAP_ADMIN_USER_PW", "PASSWORD");
 
+// maps "admin" groups to "user" groups
+// (members of admin groups [used to key this array] are allowed to reset passwords for members of mapped user groups)
+// NOTE: if empty or undefined, password resets are attempted with user-provided credentials
+$LDAP_RESET_GROUPS = array(
+    "CN=Staff,OU=Groups,DC=mydomain,DC=local" => array(
+        "CN=Students,OU=Groups,DC=mydomain,DC=local",
+    )
+);
+
 // who sends password change notifications?
 define("LDAP_EMAIL_FROM", "ICT support <ict@mydomain.local>");
 
