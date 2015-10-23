@@ -64,6 +64,7 @@ $unassigned  = array();
 $today       = array();
 $upcoming    = array();
 $pending     = array();
+$assigned    = array();
 
 // first, the unassigned tickets (all staff in relevant departments are notified, except for inactive/onvacation/assigned_only staff)
 SplitRecords($db->query("
@@ -93,7 +94,7 @@ where ost_ticket.status_id = 1
     and ost_staff.onvacation = 0
     and ost_staff.assigned_only = 0
     and ost_ticket.staff_id = 0
-order by email, priority_urgency, created
+order by email, duedate, priority_urgency, created
 "), $unassigned);
 
 // today's tickets (including any overdue ones)
@@ -124,7 +125,7 @@ where ost_ticket.status_id = 1
     and ost_staff.onvacation = 0
     and (date(ost_ticket.duedate) <= curdate()
     or ost_ticket.isoverdue <> 0)
-order by email, duedate desc, priority_urgency, created
+order by email, duedate, priority_urgency, created
 "), $today);
 
 // upcoming tickets
@@ -159,7 +160,7 @@ where ost_ticket.status_id = 1
 order by email, duedate, priority_urgency, created
 "), $upcoming);
 
-// finally, every other unclosed ticket in the system
+// finally, every other unclosed ticket in the system...
 SplitRecords($db->query("
 select ost_staff.firstname,
     ost_staff.lastname,
@@ -191,6 +192,37 @@ where ost_ticket.status_id = 1
     and ost_ticket_priority.priority_urgency <= " . OST_MAX_URGENCY . "
 order by email, duedate, priority_urgency, created
 "), $pending);
+
+// ...including those assigned to others in the same department
+SplitRecords($db->query("
+select ost_staff.firstname,
+    ost_staff.lastname,
+    ost_staff.email,
+    ost_ticket.ticket_id,
+    ost_ticket.number as ticketID,
+    ost_user.name,
+    ost_ticket__cdata.subject,
+    ost_ticket.duedate,
+    ost_ticket.lastmessage,
+    ost_ticket.lastresponse,
+    ost_ticket.created,
+    coalesce(ost_ticket_priority.priority_desc, (select priority_desc from ost_ticket_priority where priority_id = (select `value` from ost_config where `key` = 'default_priority_id'))) as priority_desc,
+    coalesce(ost_ticket_priority.priority_color, (select priority_color from ost_ticket_priority where priority_id = (select `value` from ost_config where `key` = 'default_priority_id'))) as priority_color,
+    coalesce(ost_ticket_priority.priority_urgency, (select priority_urgency from ost_ticket_priority where priority_id = (select `value` from ost_config where `key` = 'default_priority_id'))) as priority_urgency,
+    ost_help_topic.topic
+from ost_ticket
+    inner join ost_ticket__cdata on ost_ticket.ticket_id = ost_ticket__cdata.ticket_id
+    inner join ost_user on ost_ticket.user_id = ost_user.id
+    left join ost_ticket_priority on ost_ticket__cdata.priority = ost_ticket_priority.priority_id
+    left join ost_help_topic on ost_ticket.topic_id = ost_help_topic.topic_id
+    inner join ost_staff on ost_ticket.dept_id = ost_staff.dept_id and ost_ticket.staff_id <> ost_staff.staff_id
+where ost_ticket.status_id = 1
+    and ost_staff.isactive = 1
+    and ost_staff.onvacation = 0
+    and ost_staff.assigned_only = 0
+    and ost_ticket.staff_id <> 0
+order by email, duedate, priority_urgency, created
+"), $assigned);
 
 // load settings from osTicket
 $rs = $db->query("
@@ -245,13 +277,19 @@ foreach ($staffEmails as $email => $names)
         AddJobSheetSection($pdf, ucfirst($c > 1 ? OST_TICKET_PLURAL : OST_TICKET_SINGULAR) . " assigned to you", $pending[$email]);
     }
 
+    if (isset($assigned[$email]))
+    {
+        $c = count($assigned[$email]);
+        AddJobSheetSection($pdf, ucfirst($c > 1 ? OST_TICKET_PLURAL : OST_TICKET_SINGULAR) . " assigned to others in your department", $assigned[$email]);
+    }
+
     // email the report as an attachment
     $pdfData  = $pdf->Output("", "S");
     $message  = "Hi $names[firstname],
 
-Your job sheet for today is attached. May it help you to have a productive day!
+Your job sheet for today is attached.
 
-Hugs,
+Have a great day!
 
 $ostSettings[helpdesk_title]
 
