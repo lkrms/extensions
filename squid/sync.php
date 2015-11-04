@@ -432,7 +432,10 @@ if ($macAddressesChanged || ($added + $deleted > 0))
     // generate up-to-date MAC database for Squid
     file_put_contents(SQUID_ROOT . "/other_macs", implode("\n", $macs));
 
-    // TODO: reload Squid here
+    if (defined("SQUID_RELOAD_PATH"))
+    {
+        shell_exec(SQUID_RELOAD_PATH);
+    }
 }
 
 // clean up any session/device records that have been supplanted by Profile Manager or FOG records

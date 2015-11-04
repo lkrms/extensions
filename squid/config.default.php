@@ -142,6 +142,9 @@ define("SQUID_FAILURE_CODE", "ERR");
 // timezone for this instance of Squid
 define("SQUID_TIMEZONE", "Australia/Sydney");
 
+// sudo MUST be configured to allow the sync.php user to run this without a password prompt
+define("SQUID_RELOAD_PATH", "sudo /usr/sbin/service squid3 reconfigure");
+
 // there's a good chance arp won't be in Apache's PATH
 define("SQUID_ARP_PATH", "/usr/sbin/arp");
 
