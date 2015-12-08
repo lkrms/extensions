@@ -412,7 +412,13 @@ if ($macAddressesChanged || ($added + $deleted > 0))
 
     // generate up-to-date MAC database for Squid
     file_put_contents(SQUID_ROOT . "/auth_negotiate_macs", implode("\n", $macs));
-    $rs = mysqli_query($conn, "SELECT mac_address FROM mac_addresses WHERE auth_negotiate <> 'Y' ORDER BY mac_address");
+    $rs = mysqli_query($conn, "(SELECT mac_address FROM mac_addresses WHERE auth_negotiate <> 'Y')
+UNION
+(SELECT mac_address FROM enterprise_devices
+        WHERE NOT mac_address IN
+            (SELECT mac_address FROM user_devices WHERE server_name IS NOT NULL
+                UNION SELECT mac_address FROM mac_addresses))
+ORDER BY mac_address");
 
     if ($rs === false)
     {
