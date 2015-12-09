@@ -160,6 +160,7 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
         }
 
         $deleted++;
+        $macAddressesChanged = true;
     }
 
     // add new device records to cache
@@ -193,6 +194,7 @@ WHERE devices.mdm_target_type IN ('" . implode("', '", $targetTypes) . "')
         }
 
         $added++;
+        $macAddressesChanged = true;
     }
 
     // PART 2
