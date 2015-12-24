@@ -65,3 +65,5 @@ CREATE TABLE IF NOT EXISTS `enterprise_devices` (
   KEY `server_name` (`server_name`,`mac_address`)
 );
 
+ALTER TABLE `enterprise_devices` ADD UNIQUE INDEX `mac_address` (`mac_address`);
+
