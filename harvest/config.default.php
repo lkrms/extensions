@@ -7,7 +7,7 @@ $HARVEST_SYNC_RELATIONSHIPS = array(
         // source
         'sourceAccountId' => 999999,
         'sourceProjectId' => null,    // may be null
-        'sourceUserId'    => 8888888,    // may be null
+        'sourceUserId'    => 8888888,    // may be null (will look up user authenticated by token)
         'sourceToken'     => '== paste token here ==',
 
         // target

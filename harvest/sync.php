@@ -112,6 +112,13 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     {
         $query['user_id'] = $syncData['sourceUserId'];
     }
+    else
+    {
+        $curl              = new Curler(HARVEST_API_ROOT . '/v2/users/me', $sourceHeaders);
+        $me                = json_decode($curl->Get(), true);
+        $query['user_id']  = $me['id'];
+        echo "No source user ID provided, using {$me['id']} ({$me['first_name']} {$me['last_name']} <{$me['email']}>)\n";
+    }
 
     if (isset($syncData['sourceProjectId']) && ! is_null($syncData['sourceProjectId']))
     {
