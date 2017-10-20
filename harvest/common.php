@@ -1,10 +1,14 @@
 <?php
 
-define("HARVEST_ROOT", dirname(__FILE__));
+define('HARVEST_ROOT', dirname(__FILE__));
+define('HARVEST_API_ROOT', 'https://api.harvestapp.com');
+
+// load configuration options
+require_once (HARVEST_ROOT . '/config.php');
 
 class CurlerHeader
 {
-    private $Headers = array('User-Agent' => 'User-Agent:Curler PHP library');
+    private $Headers = array('User-Agent' => 'User-Agent:Curler PHP library (https://github.com/lkrms/extensions)');
 
     public function SetHeader($name, $value)
     {
@@ -63,9 +67,6 @@ class Curler
 
         $this->Curl = curl_init($this->BaseUrl . $query);
 
-        // add headers for authentication etc.
-        curl_setopt($this->Curl, CURLOPT_HTTPHEADER, $this->Headers->GetHeaders());
-
         // allows GET, POST, DELETE, etc.
         curl_setopt($this->Curl, CURLOPT_CUSTOMREQUEST, $requestType);
 
@@ -76,8 +77,18 @@ class Curler
         curl_setopt($this->Curl, CURLOPT_FAILONERROR, true);
     }
 
+    private function AddData( array $data)
+    {
+        $this->Headers->SetHeader('Content-Type', 'application/json');
+        curl_setopt($this->Curl, CURLOPT_POSTFIELDS, json_encode($data));
+    }
+
     private function Execute()
     {
+        // add headers for authentication etc.
+        curl_setopt($this->Curl, CURLOPT_HTTPHEADER, $this->Headers->GetHeaders());
+
+        // execute the request
         $result = curl_exec($this->Curl);
 
         if ($result === false)
@@ -96,6 +107,56 @@ class Curler
     public function Get( array $queryString = null)
     {
         $this->Initialise('GET', $queryString);
+        $result = $this->Execute();
+        $this->Close();
+
+        return $result;
+    }
+
+    public function GetAllHarvest($entityName, array $queryString = null)
+    {
+        $entities  = array();
+        $nextUrl   = null;
+
+        do
+        {
+            $this->Initialise('GET', $queryString);
+
+            if ($nextUrl)
+            {
+                curl_setopt($this->Curl, CURLOPT_URL, $nextUrl);
+            }
+
+            $result = json_decode($this->Execute(), true);
+            $this->Close();
+
+            // collect data from response and move on to next page
+            $entities  = array_merge($entities, $result[$entityName]);
+            $nextUrl   = $result['links']['next'];
+        }
+        while ($nextUrl);
+
+        return $entities;
+    }
+
+    public function Post( array $data = null, array $queryString = null)
+    {
+        $this->Initialise('POST', $queryString);
+
+        if ( ! is_null($data))
+        {
+            $this->AddData($data);
+        }
+
+        $result = $this->Execute();
+        $this->Close();
+
+        return $result;
+    }
+
+    public function Delete( array $queryString = null)
+    {
+        $this->Initialise('DELETE', $queryString);
         $result = $this->Execute();
         $this->Close();
 
