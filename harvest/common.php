@@ -184,6 +184,21 @@ class Curler
         return json_decode($this->Post($data, $queryString), true);
     }
 
+    public function Patch( array $data = null, array $queryString = null)
+    {
+        $this->Initialise('PATCH', $queryString);
+        $this->AddData($data);
+        $result = $this->Execute();
+        $this->Close();
+
+        return $result;
+    }
+
+    public function PatchJson( array $data = null, array $queryString = null)
+    {
+        return json_decode($this->Patch($data, $queryString), true);
+    }
+
     public function Delete( array $queryString = null)
     {
         $this->Initialise('DELETE', $queryString);
@@ -232,6 +247,11 @@ class HarvestCredentials
         $this->IsProjectManager  = $me['is_project_manager'];
     }
 
+    public function GetAccountId()
+    {
+        return $this->AccountId;
+    }
+
     public static function FromName($accountName)
     {
         global $HARVEST_ACCOUNTS;
@@ -252,6 +272,57 @@ class HarvestCredentials
 
         return $headers;
     }
+}
+
+function check_data_file_access($filePath)
+{
+    $dir = dirname($filePath);
+
+    if ( ! is_dir($dir))
+    {
+        if ( ! mkdir($dir, 0700, true))
+        {
+            throw new Exception("Unable to create directory $dir");
+        }
+    }
+
+    if ( ! is_writable($dir))
+    {
+        throw new Exception("Unable to write to directory $dir");
+    }
+
+    if (file_exists($filePath) && ! is_writable($filePath))
+    {
+        throw new Exception("Unable to write to file $filePath");
+    }
+}
+
+function get_data_file_path($accountId)
+{
+    return dirname(__FILE__) . "/data/{$accountId}.json";
+}
+
+function load_data_file($accountId)
+{
+    global $dataFile;
+    $dataFilePath = get_data_file_path($accountId);
+    check_data_file_access($dataFilePath);
+
+    if (file_exists($dataFilePath))
+    {
+        $dataFile = json_decode(file_get_contents($dataFilePath), true);
+    }
+    else
+    {
+        $dataFile = array('billedTimes' => array());
+    }
+}
+
+function save_data_file($accountId)
+{
+    global $dataFile;
+    $dataFilePath = get_data_file_path($accountId);
+    file_put_contents($dataFilePath, json_encode($dataFile));
 }
 
 // PRETTY_NESTED_ARRAYS,0

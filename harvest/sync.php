@@ -45,6 +45,9 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     $sourceHeaders  = $sourceAccount->GetHeaders();
     $targetHeaders  = $targetAccount->GetHeaders();
 
+    // Harvest doesn't allow us to mark time entries as billed via the API, so we have to keep track ourselves
+    load_data_file($targetAccount->GetAccountId());
+
     // 1. retrieve tasks associated with project in target
     $query = array(
         'is_active' => 'true',
@@ -96,7 +99,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     foreach ($targetTimes as $targetTime)
     {
         // as soon as we hit a locked entry, we know we've already invoiced to this date
-        if ($targetTime['is_locked'])
+        if ($targetTime['is_locked'] || in_array($targetTime['id'], $dataFile['billedTimes']))
         {
             $newFromDate = date('Y-m-d', strtotime($targetTime['spent_date'] . ' +1 day'));
 

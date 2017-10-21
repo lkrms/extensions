@@ -4,12 +4,17 @@
 //
 //
 require_once (dirname(__FILE__) . '/common.php');
+
+// keep count of invoices raised today
 $i = 1;
 
 foreach ($HARVEST_INVOICES as $accountName => $invData)
 {
     $account  = HarvestCredentials::FromName($accountName);
     $headers  = $account->GetHeaders();
+
+    // Harvest doesn't allow us to mark time entries as billed via the API, so we have to keep track ourselves
+    load_data_file($account->GetAccountId());
 
     // 1. retrieve all uninvoiced time entries
     $query = array(
@@ -27,7 +32,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
     {
         $clientId = $time['client']['id'];
 
-        if (in_array($clientId, $invData['excludeClients']))
+        if (in_array($clientId, $invData['excludeClients']) || in_array($time['id'], $dataFile['billedTimes']))
         {
             continue;
         }
@@ -125,7 +130,8 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
         }
 
         // yes, we do! build it out
-        $lineItems = array();
+        $lineItems     = array();
+        $markAsBilled  = array();
 
         foreach ($invoiceTimes as $t)
         {
@@ -141,6 +147,8 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
                 'quantity'    => $t['hours'],
                 'unit_price'  => $t['billable_rate'],
             );
+
+            $markAsBilled[] = $t;
         }
 
         $data = array(
@@ -156,6 +164,14 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
         $curl    = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
         $result  = $curl->PostJson($data);
         echo "Invoice {$data['number']} created for $clientName with id {$result['id']}\n";
+
+        foreach ($markAsBilled as $t)
+        {
+            $dataFile['billedTimes'][] = $t['id'];
+        }
+
+        // save after every invoice
+        save_data_file($account->GetAccountId());
         $i++;
     }
 }
