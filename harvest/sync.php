@@ -115,7 +115,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     else
     {
         $curl              = new Curler(HARVEST_API_ROOT . '/v2/users/me', $sourceHeaders);
-        $me                = json_decode($curl->Get(), true);
+        $me                = $curl->GetJson();
         $query['user_id']  = $me['id'];
         echo "No source user ID provided, using {$me['id']} ({$me['first_name']} {$me['last_name']} <{$me['email']}>)\n";
     }
@@ -176,7 +176,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
         }
 
         $curl    = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $targetHeaders);
-        $result  = json_decode($curl->Post($data), true);
+        $result  = $curl->PostJson($data);
         echo "$hash: added to target with id {$result['id']}\n";
     }
 }
