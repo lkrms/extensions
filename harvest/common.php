@@ -40,7 +40,7 @@ class Curler
 
     private $Headers;
 
-    private $Curl;
+    private static $Curl;
 
     public function __construct($baseUrl, CurlerHeader $headers)
     {
@@ -51,6 +51,23 @@ class Curler
 
         $this->BaseUrl  = $baseUrl;
         $this->Headers  = $headers;
+
+        if ( ! is_resource(self::$Curl))
+        {
+            self::$Curl = curl_init();
+            $this->Reset();
+        }
+    }
+
+    private function Reset()
+    {
+        curl_reset(self::$Curl);
+
+        // don't send output to browser
+        curl_setopt(self::$Curl, CURLOPT_RETURNTRANSFER, true);
+
+        // fail if HTTP response code is >=400, rather than returning the error page
+        curl_setopt(self::$Curl, CURLOPT_FAILONERROR, true);
     }
 
     private function Initialise($requestType = 'GET', array $queryString = null)
@@ -65,35 +82,49 @@ class Curler
             }
         }
 
-        $this->Curl = curl_init($this->BaseUrl . $query);
+        curl_setopt(self::$Curl, CURLOPT_URL, $this->BaseUrl . $query);
 
-        // allows GET, POST, DELETE, etc.
-        curl_setopt($this->Curl, CURLOPT_CUSTOMREQUEST, $requestType);
+        switch ($requestType)
+        {
+            case 'GET':
 
-        // don't send output to browser
-        curl_setopt($this->Curl, CURLOPT_RETURNTRANSFER, true);
+                // nothing to do -- GET is the default
+                break;
 
-        // fail if HTTP response code is >=400, rather than returning the error page
-        curl_setopt($this->Curl, CURLOPT_FAILONERROR, true);
+            case 'POST':
+
+                curl_setopt(self::$Curl, CURLOPT_POST, true);
+
+                break;
+
+            default:
+
+                // allows DELETE, PATCH etc.
+                curl_setopt(self::$Curl, CURLOPT_CUSTOMREQUEST, $requestType);
+        }
     }
 
     private function AddData( array $data)
     {
-        $this->Headers->SetHeader('Content-Type', 'application/json');
-        curl_setopt($this->Curl, CURLOPT_POSTFIELDS, json_encode($data));
+        if ( ! is_null($data))
+        {
+            $this->Headers->SetHeader('Content-Type', 'application/json');
+        }
+
+        curl_setopt(self::$Curl, CURLOPT_POSTFIELDS, is_null($data) ? '' : json_encode($data));
     }
 
     private function Execute()
     {
         // add headers for authentication etc.
-        curl_setopt($this->Curl, CURLOPT_HTTPHEADER, $this->Headers->GetHeaders());
+        curl_setopt(self::$Curl, CURLOPT_HTTPHEADER, $this->Headers->GetHeaders());
 
         // execute the request
-        $result = curl_exec($this->Curl);
+        $result = curl_exec(self::$Curl);
 
         if ($result === false)
         {
-            throw new Exception('cURL error: ' . curl_error($this->Curl));
+            throw new Exception('cURL error: ' . curl_error(self::$Curl));
         }
 
         return $result;
@@ -101,7 +132,7 @@ class Curler
 
     private function Close()
     {
-        curl_close($this->Curl);
+        $this->Reset();
     }
 
     public function Get( array $queryString = null)
@@ -113,22 +144,25 @@ class Curler
         return $result;
     }
 
+    public function GetJson( array $queryString = null)
+    {
+        return json_decode($this->Get($queryString), true);
+    }
+
     public function GetAllHarvest($entityName, array $queryString = null)
     {
+        $this->Initialise('GET', $queryString);
         $entities  = array();
         $nextUrl   = null;
 
         do
         {
-            $this->Initialise('GET', $queryString);
-
             if ($nextUrl)
             {
-                curl_setopt($this->Curl, CURLOPT_URL, $nextUrl);
+                curl_setopt(self::$Curl, CURLOPT_URL, $nextUrl);
             }
 
             $result = json_decode($this->Execute(), true);
-            $this->Close();
 
             // collect data from response and move on to next page
             $entities  = array_merge($entities, $result[$entityName]);
@@ -136,22 +170,24 @@ class Curler
         }
         while ($nextUrl);
 
+        $this->Close();
+
         return $entities;
     }
 
     public function Post( array $data = null, array $queryString = null)
     {
         $this->Initialise('POST', $queryString);
-
-        if ( ! is_null($data))
-        {
-            $this->AddData($data);
-        }
-
+        $this->AddData($data);
         $result = $this->Execute();
         $this->Close();
 
         return $result;
+    }
+
+    public function PostJson( array $data = null, array $queryString = null)
+    {
+        return json_decode($this->Post($data, $queryString), true);
     }
 
     public function Delete( array $queryString = null)
@@ -161,6 +197,11 @@ class Curler
         $this->Close();
 
         return $result;
+    }
+
+    public function DeleteJson( array $queryString = null)
+    {
+        return json_decode($this->Delete($queryString), true);
     }
 }
 
