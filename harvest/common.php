@@ -202,10 +202,31 @@ class HarvestCredentials
 
     private $Token;
 
+    public $UserId;
+
+    public $FullName;
+
+    public $Email;
+
+    public $IsAdmin;
+
+    public $IsProjectManager;
+
     public function __construct($accountId, $token)
     {
         $this->AccountId  = $accountId;
         $this->Token      = $token;
+
+        // retrieve our user object (doubles as a credential test)
+        $curl  = new Curler(HARVEST_API_ROOT . '/v2/users/me', $this->GetHeaders());
+        $me    = $curl->GetJson();
+
+        // if we get to here, the credentials worked
+        $this->UserId            = $me['id'];
+        $this->FullName          = $me['first_name'] . ' ' . $me['last_name'];
+        $this->Email             = $me['email'];
+        $this->IsAdmin           = $me['is_admin'];
+        $this->IsProjectManager  = $me['is_project_manager'];
     }
 
     public static function FromName($accountName)

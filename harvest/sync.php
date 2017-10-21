@@ -77,6 +77,11 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     {
         $query['user_id'] = $syncData['targetUserId'];
     }
+    else
+    {
+        $query['user_id'] = $targetAccount->UserId;
+        echo "No target user ID provided, using {$targetAccount->UserId} ({$targetAccount->FullName} <{$targetAccount->Email}>)\n";
+    }
 
     $curl         = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $targetHeaders);
     $targetTimes  = $curl->GetAllHarvest('time_entries', $query);
@@ -116,10 +121,8 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     }
     else
     {
-        $curl              = new Curler(HARVEST_API_ROOT . '/v2/users/me', $sourceHeaders);
-        $me                = $curl->GetJson();
-        $query['user_id']  = $me['id'];
-        echo "No source user ID provided, using {$me['id']} ({$me['first_name']} {$me['last_name']} <{$me['email']}>)\n";
+        $query['user_id'] = $sourceAccount->UserId;
+        echo "No source user ID provided, using {$sourceAccount->UserId} ({$sourceAccount->FullName} <{$sourceAccount->Email}>)\n";
     }
 
     if (isset($syncData['sourceProjectId']) && ! is_null($syncData['sourceProjectId']))
