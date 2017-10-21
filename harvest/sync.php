@@ -1,5 +1,8 @@
 <?php
 
+// sync.php - designed to run every 5 minutes or so
+//
+//
 require_once (dirname(__FILE__) . '/common.php');
 
 function GetTimeEntryHash($timeEntry, $fromTarget = true)

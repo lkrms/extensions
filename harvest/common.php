@@ -6,6 +6,9 @@ define('HARVEST_API_ROOT', 'https://api.harvestapp.com');
 // load configuration options
 require_once (HARVEST_ROOT . '/config.php');
 
+// needed before we can use date functions error-free
+date_default_timezone_set(HARVEST_TIMEZONE);
+
 class CurlerHeader
 {
     private $Headers = array('User-Agent' => 'User-Agent:Curler PHP library (https://github.com/lkrms/extensions)');
