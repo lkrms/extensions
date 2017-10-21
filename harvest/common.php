@@ -230,6 +230,8 @@ class HarvestCredentials
 
     public $IsProjectManager;
 
+    public $CompanyName;
+
     public function __construct($accountId, $token)
     {
         $this->AccountId  = $accountId;
@@ -245,6 +247,11 @@ class HarvestCredentials
         $this->Email             = $me['email'];
         $this->IsAdmin           = $me['is_admin'];
         $this->IsProjectManager  = $me['is_project_manager'];
+
+        // get company details too
+        $curl               = new Curler(HARVEST_API_ROOT . '/v2/company', $this->GetHeaders());
+        $company            = $curl->GetJson();
+        $this->CompanyName  = $company['name'];
     }
 
     public function GetAccountId()
