@@ -23,15 +23,6 @@ class CurlerHeader
     {
         return array_values($this->Headers);
     }
-
-    public static function GetHarvestApiHeaders($harvestAccountId, $harvestToken)
-    {
-        $headers = new self;
-        $headers->SetHeader('Harvest-Account-ID', $harvestAccountId);
-        $headers->SetHeader('Authorization', "Bearer $harvestToken");
-
-        return $headers;
-    }
 }
 
 class Curler
@@ -202,6 +193,40 @@ class Curler
     public function DeleteJson( array $queryString = null)
     {
         return json_decode($this->Delete($queryString), true);
+    }
+}
+
+class HarvestCredentials
+{
+    private $AccountId;
+
+    private $Token;
+
+    public function __construct($accountId, $token)
+    {
+        $this->AccountId  = $accountId;
+        $this->Token      = $token;
+    }
+
+    public static function FromName($accountName)
+    {
+        global $HARVEST_ACCOUNTS;
+
+        if ( ! isset($HARVEST_ACCOUNTS[$accountName]['accountId']) || ! isset($HARVEST_ACCOUNTS[$accountName]['token']))
+        {
+            throw new Exception("Not enough data for account '$accountName'");
+        }
+
+        return new self($HARVEST_ACCOUNTS[$accountName]['accountId'], $HARVEST_ACCOUNTS[$accountName]['token']);
+    }
+
+    public function GetHeaders()
+    {
+        $headers = new CurlerHeader();
+        $headers->SetHeader('Harvest-Account-ID', $this->AccountId);
+        $headers->SetHeader('Authorization', "Bearer {$this->Token}");
+
+        return $headers;
     }
 }
 

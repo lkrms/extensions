@@ -37,10 +37,10 @@ $fromDate = date('Y-m-d', strtotime('-2 weeks'));
 
 foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
 {
-    $sourceAccount  = $HARVEST_ACCOUNTS[$syncData['sourceName']];
-    $targetAccount  = $HARVEST_ACCOUNTS[$syncData['targetName']];
-    $sourceHeaders  = CurlerHeader::GetHarvestApiHeaders($sourceAccount['accountId'], $sourceAccount['token']);
-    $targetHeaders  = CurlerHeader::GetHarvestApiHeaders($targetAccount['accountId'], $targetAccount['token']);
+    $sourceAccount  = HarvestCredentials::FromName($syncData['sourceName']);
+    $targetAccount  = HarvestCredentials::FromName($syncData['targetName']);
+    $sourceHeaders  = $sourceAccount->GetHeaders();
+    $targetHeaders  = $targetAccount->GetHeaders();
 
     // 1. retrieve tasks associated with project in target
     $query = array(
