@@ -51,18 +51,24 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
         $clientName = $invoiceTimes[0]['client']['name'];
 
         // these settings are overridable per-client
-        $includeUnbillable  = $invData['includeUnbillable'];
+        $showData           = $invData['showData'];
         $invoiceOn          = $invData['invoiceOn'];
+        $includeUnbillable  = $invData['includeUnbillable'];
         $daysToPay          = $invData['daysToPay'];
 
-        if (isset($invData['customClients'][$clientId]['includeUnbillable']))
+        if (isset($invData['customClients'][$clientId]['showData']))
         {
-            $includeUnbillable = $invData['customClients'][$clientId]['includeUnbillable'];
+            $showData = $invData['customClients'][$clientId]['showData'];
         }
 
         if (isset($invData['customClients'][$clientId]['invoiceOn']))
         {
             $invoiceOn = $invData['customClients'][$clientId]['invoiceOn'];
+        }
+
+        if (isset($invData['customClients'][$clientId]['includeUnbillable']))
+        {
+            $includeUnbillable = $invData['customClients'][$clientId]['includeUnbillable'];
         }
 
         if (isset($invData['customClients'][$clientId]['daysToPay']))
@@ -140,10 +146,61 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
                 continue;
             }
 
+            $show       = array();
+            $finalShow  = array();
+
+            if (in_array('date', $showData))
+            {
+                $show[] = date($invData['dateFormat'], strtotime($t['spent_date']));
+            }
+
+            if (in_array('time', $showData) && $t['started_time'] && $t['ended_time'])
+            {
+                $show[] = "{$t['started_time']} - {$t['ended_time']}";
+            }
+
+            if ($show)
+            {
+                $finalShow[]  = '[' . implode(' ', $show) . ']';
+                $show         = array();
+            }
+
+            if (in_array('project', $showData))
+            {
+                $show[] = $t['project']['name'];
+            }
+
+            if (in_array('task', $showData))
+            {
+                $show[] = $t['task']['name'];
+            }
+
+            if ($show)
+            {
+                $finalShow[] = implode(' - ', $show);
+            }
+
+            if (in_array('people', $showData))
+            {
+                $finalShow[] = "({$t['user']['name']})";
+            }
+
+            $show = '';
+
+            if ($finalShow)
+            {
+                $show = implode(' ', $finalShow);
+            }
+
+            if (in_array('notes', $showData) && $t['notes'])
+            {
+                $show .= ($show ? "\n" : '') . $t['notes'];
+            }
+
             $lineItems[] = array(
                 'project_id'  => $t['project']['id'],
                 'kind'        => $invData['itemKind'],
-                'description' => $t['notes'],
+                'description' => $show,
                 'quantity'    => $t['hours'],
                 'unit_price'  => $t['billable_rate'],
             );
