@@ -59,7 +59,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
 
     foreach ($targetTasks as $targetTask)
     {
-        if ($targetTask['task']['name'] == $syncData['targetTaskName'])
+        if (strcasecmp(trim($targetTask['task']['name']), trim($syncData['targetTaskName'])) == 0)
         {
             $targetTaskId = $targetTask['task']['id'];
 
