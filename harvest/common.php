@@ -10,5 +10,5 @@ require_once (HARVEST_ROOT . '/config.php');
 require_once (HARVEST_ROOT . '/classes/HarvestApp.php');
 spl_autoload_register('HarvestApp::Autoload');
 
-// needed before we can use date functions error-free
-date_default_timezone_set(HARVEST_TIMEZONE);
+// apply settings, check file access, etc.
+HarvestApp::InitApp();

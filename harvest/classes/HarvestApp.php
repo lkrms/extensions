@@ -2,6 +2,8 @@
 
 class HarvestApp
 {
+    private static $LogPath;
+
     public static function Autoload($className)
     {
         // don't attempt to autoload namespaced classes
@@ -14,6 +16,16 @@ class HarvestApp
                 require_once ($path);
             }
         }
+    }
+
+    public static function InitApp()
+    {
+        // ensure we can write to a log file
+        self::$LogPath = HARVEST_ROOT . '/log/app.log';
+        self::CheckFileAccess(self::$LogPath);
+
+        // needed before we can use date functions error-free
+        date_default_timezone_set(HARVEST_TIMEZONE);
     }
 
     private static function GetDataFilePath($accountId)
