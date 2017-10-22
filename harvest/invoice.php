@@ -55,6 +55,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
         $invoiceOn          = $invData['invoiceOn'];
         $includeUnbillable  = $invData['includeUnbillable'];
         $daysToPay          = $invData['daysToPay'];
+        $sendEmail          = $invData['sendEmail'];
 
         if (isset($invData['customClients'][$clientId]['showData']))
         {
@@ -74,6 +75,11 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
         if (isset($invData['customClients'][$clientId]['daysToPay']))
         {
             $daysToPay = $invData['customClients'][$clientId]['daysToPay'];
+        }
+
+        if (isset($invData['customClients'][$clientId]['sendEmail']))
+        {
+            $sendEmail = $invData['customClients'][$clientId]['sendEmail'];
         }
 
         // do we invoice this client today?
@@ -224,9 +230,22 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
         );
 
         // create a new invoice
-        $curl    = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
-        $result  = $curl->PostJson($data);
-        HarvestApp::Log("Invoice {$data['number']} created for $clientName with id {$result['id']}");
+        $curl     = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
+        $invoice  = $curl->PostJson($data);
+
+        // success! prepare the data for substituting into templates
+        $invoiceData = array(
+            'id'          => $invoice['id'],
+            'number'      => $invoice['number'],
+            'amount'      => HarvestApp::FormatCurrency($invoice['amount']) . ' ' . $invoice['currency'],
+            'dueAmount'   => HarvestApp::FormatCurrency($invoice['due_amount']) . ' ' . $invoice['currency'],
+            'issueDate'   => date($invData['dateFormat'], strtotime($invoice['issue_date'])),
+            'dueDate'     => date($invData['dateFormat'], strtotime($invoice['due_date'])),
+            'companyName' => $account->CompanyName,
+            'clientName'  => $clientName,
+        );
+
+        HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']})");
 
         foreach ($markAsBilled as $t)
         {
@@ -235,6 +254,50 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
 
         // save after every invoice
         HarvestApp::SaveDataFile($account->GetAccountId(), $dataFile);
+
+        if ($sendEmail)
+        {
+            $curl      = new Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
+            $contacts  = $curl->GetAllHarvest('contacts', array(
+                'client_id' => $clientId
+            ));
+            $recipients = array();
+
+            foreach ($contacts as $contact)
+            {
+                if ($contact['email'])
+                {
+                    $recipients[] = array(
+                        'name'  => trim("{$contact['first_name']} {$contact['last_name']}"),
+                        'email' => $contact['email']
+                    );
+                }
+            }
+
+            if ($recipients)
+            {
+                // send invoice to client
+                $emailSubject  = HarvestApp::FillTemplate($invData['emailSubject'], $invoiceData);
+                $emailBody     = HarvestApp::FillTemplate($invData['emailBody'], $invoiceData);
+                $messageData   = array(
+                    'recipients' => $recipients,
+                    'subject'    => $emailSubject,
+                    'body'       => $emailBody,
+                    'include_link_to_client_invoice' => true,
+                    'attach_pdf'                     => true,
+                    'send_me_a_copy'                 => true,
+                );
+
+                $curl    = new Curler(HARVEST_API_ROOT . "/v2/invoices/{$invoiceData['id']}/messages", $headers);
+                $result  = $curl->PostJson($messageData);
+                HarvestApp::Log("Emailed invoice {$invoiceData['number']} to $clientName with message id {$result['id']}");
+            }
+            else
+            {
+                HarvestApp::Log("Unable to email invoice {$invoiceData['number']} to $clientName (no suitable contacts)");
+            }
+        }
+
         $i++;
     }
 }

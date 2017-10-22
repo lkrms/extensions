@@ -102,5 +102,15 @@ class HarvestApp
     {
         return number_format($value, 2);
     }
+
+    public static function FillTemplate($template, array $values)
+    {
+        foreach ($values as $var => $val)
+        {
+            $template = str_replace("[[{$var}]]", $val, $template);
+        }
+
+        return $template;
+    }
 }
 
