@@ -28,6 +28,12 @@ class HarvestApp
         date_default_timezone_set(HARVEST_TIMEZONE);
     }
 
+    public static function Log($message)
+    {
+        $message = '[' . date('r') . '] ' . $message . PHP_EOL;
+        file_put_contents(self::$LogPath, $message, FILE_APPEND);
+    }
+
     private static function GetDataFilePath($accountId)
     {
         if ($accountId)

@@ -86,7 +86,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     else
     {
         $query['user_id'] = $targetAccount->UserId;
-        echo "No target user ID provided, using {$targetAccount->UserId} ({$targetAccount->FullName} <{$targetAccount->Email}>)\n";
+        HarvestApp::Log("No target user ID provided, using {$targetAccount->UserId} ({$targetAccount->FullName} <{$targetAccount->Email}>)");
     }
 
     $curl         = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $targetHeaders);
@@ -104,7 +104,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
             $newFromDate = date('Y-m-d', strtotime($targetTime['spent_date'] . ' +1 day'));
 
             // provide feedback
-            echo "Found a locked time entry in the target project on {$targetTime['spent_date']}, searching in source from $newFromDate\n";
+            HarvestApp::Log("Found a locked time entry in the target project on {$targetTime['spent_date']}, searching in source from $newFromDate");
 
             break;
         }
@@ -128,7 +128,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     else
     {
         $query['user_id'] = $sourceAccount->UserId;
-        echo "No source user ID provided, using {$sourceAccount->UserId} ({$sourceAccount->FullName} <{$sourceAccount->Email}>)\n";
+        HarvestApp::Log("No source user ID provided, using {$sourceAccount->UserId} ({$sourceAccount->FullName} <{$sourceAccount->Email}>)");
     }
 
     if (isset($syncData['sourceProjectId']) && ! is_null($syncData['sourceProjectId']))
@@ -150,7 +150,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
         {
             // this entry is in sync -- no action required
             unset($lookupTimes[$sourceHash]);
-            echo "$sourceHash: in sync\n";
+            HarvestApp::Log("$sourceHash: in sync");
 
             continue;
         }
@@ -163,7 +163,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     {
         $curl    = new Curler(HARVEST_API_ROOT . "/v2/time_entries/{$targetTime['id']}", $targetHeaders);
         $result  = $curl->Delete();
-        echo "$hash: deleted\n";
+        HarvestApp::Log("$hash: deleted");
     }
 
     // 7. create new target entries
@@ -188,7 +188,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
 
         $curl    = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $targetHeaders);
         $result  = $curl->PostJson($data);
-        echo "$hash: added to target with id {$result['id']}\n";
+        HarvestApp::Log("$hash: added to target with id {$result['id']}");
     }
 }
 
