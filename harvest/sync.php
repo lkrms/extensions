@@ -46,7 +46,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     $targetHeaders  = $targetAccount->GetHeaders();
 
     // Harvest doesn't allow us to mark time entries as billed via the API, so we have to keep track ourselves
-    load_data_file($targetAccount->GetAccountId());
+    HarvestApp::LoadDataFile($targetAccount->GetAccountId(), $dataFile);
 
     // 1. retrieve tasks associated with project in target
     $query = array(
