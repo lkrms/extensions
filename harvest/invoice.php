@@ -14,7 +14,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
     $headers  = $account->GetHeaders();
 
     // Harvest doesn't allow us to mark time entries as billed via the API, so we have to keep track ourselves
-    load_data_file($account->GetAccountId());
+    HarvestApp::LoadDataFile($account->GetAccountId(), $dataFile);
 
     // 1. retrieve all uninvoiced time entries
     $query = array(
@@ -99,7 +99,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
 
                     if ( ! in_array(date('w', $today) + 0, $value))
                     {
-                        echo "Skipping $clientName (not due to be invoiced today - wrong dayOfWeek)\n";
+                        HarvestApp::Log("Skipping $clientName (not due to be invoiced today - wrong dayOfWeek)");
 
                         continue 3;
                     }
@@ -111,7 +111,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
                     // negative numbers are counted from the end of the month
                     if ( ! in_array(date('j', $today) + 0, $value) && ! in_array( - (date('t', $today) - date('j', $today) + 1), $value))
                     {
-                        echo "Skipping $clientName (not due to be invoiced today - wrong dayOfMonth)\n";
+                        HarvestApp::Log("Skipping $clientName (not due to be invoiced today - wrong dayOfMonth)");
 
                         continue 3;
                     }
@@ -122,7 +122,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
 
                     if ( ! in_array(ceil(date('j', $today) / 7), $value) && ! in_array( - ceil((date('t', $today) - date('j', $today) + 1) / 7), $value))
                     {
-                        echo "Skipping $clientName (not due to be invoiced today - wrong weekOfMonth)\n";
+                        HarvestApp::Log("Skipping $clientName (not due to be invoiced today - wrong weekOfMonth)");
 
                         continue 3;
                     }
@@ -197,7 +197,10 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
                 $show .= ($show ? "\n" : '') . $t['notes'];
             }
 
-            $lineItems[] = array(
+            $sortKey = date('YmdHis', strtotime("{$t['spent_date']} {$t['started_time']}")) . '-' . $t['id'];
+
+            // attempt to store with a meaningfully sortable key
+            $lineItems[$sortKey] = array(
                 'project_id'  => $t['project']['id'],
                 'kind'        => $invData['itemKind'],
                 'description' => $show,
@@ -208,19 +211,22 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
             $markAsBilled[] = $t;
         }
 
+        ksort($lineItems);
+
+        // assemble invoice data for Harvest
         $data = array(
             'client_id'  => $clientId,
             'number'     => 'H-' . date('ymd', $today) . sprintf('%02d', $i),
             'notes'      => $invData['notes'],
             'issue_date' => date('Y-m-d', $today),
             'due_date'   => date('Y-m-d', $today + ($daysToPay * 24 * 60 * 60)),
-            'line_items' => $lineItems,
+            'line_items' => array_values($lineItems),
         );
 
         // create a new invoice
         $curl    = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
         $result  = $curl->PostJson($data);
-        echo "Invoice {$data['number']} created for $clientName with id {$result['id']}\n";
+        HarvestApp::Log("Invoice {$data['number']} created for $clientName with id {$result['id']}");
 
         foreach ($markAsBilled as $t)
         {
@@ -228,7 +234,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
         }
 
         // save after every invoice
-        save_data_file($account->GetAccountId());
+        HarvestApp::SaveDataFile($account->GetAccountId(), $dataFile);
         $i++;
     }
 }
