@@ -97,5 +97,10 @@ class HarvestApp
         $dataFilePath = self::GetDataFilePath($accountId);
         file_put_contents($dataFilePath, json_encode($dataFile));
     }
+
+    public static function FormatCurrency($value)
+    {
+        return number_format($value, 2);
+    }
 }
 
