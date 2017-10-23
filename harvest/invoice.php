@@ -6,7 +6,8 @@
 require_once (dirname(__FILE__) . '/common.php');
 
 // keep count of invoices raised today
-$i = 1;
+$today  = time();
+$i      = 1;
 
 foreach ($HARVEST_INVOICES as $accountName => $invData)
 {
@@ -20,6 +21,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
     $query = array(
         'is_running' => 'false',
         'is_billed'  => 'false',
+        'to'         => date('Y-m-d', strtotime('-1 day', $today)),
     );
 
     $curl   = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $headers);
@@ -95,8 +97,6 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
         }
 
         // do we invoice this client today?
-        $today = time();
-
         foreach ($invoiceOn as $filter => $value)
         {
             if (is_null($value))
