@@ -59,6 +59,9 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
             continue;
         }
 
+        $total        = $clientTotals[$clientId];
+        $prettyTotal  = HarvestApp::FormatCurrency($total);
+
         // these settings are overridable per-client
         $showData           = $invData['showData'];
         $invoiceOn          = $invData['invoiceOn'];
@@ -114,7 +117,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
 
                     if ( ! in_array(date('w', $today) + 0, $value))
                     {
-                        HarvestApp::Log("Skipping $clientName (not due to be invoiced today - wrong dayOfWeek)");
+                        HarvestApp::Log("Skipping $prettyTotal for $clientName (not due to be invoiced today - wrong dayOfWeek)");
 
                         continue 3;
                     }
@@ -126,7 +129,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
                     // negative numbers are counted from the end of the month
                     if ( ! in_array(date('j', $today) + 0, $value) && ! in_array( - (date('t', $today) - date('j', $today) + 1), $value))
                     {
-                        HarvestApp::Log("Skipping $clientName (not due to be invoiced today - wrong dayOfMonth)");
+                        HarvestApp::Log("Skipping $prettyTotal for $clientName (not due to be invoiced today - wrong dayOfMonth)");
 
                         continue 3;
                     }
@@ -137,7 +140,7 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
 
                     if ( ! in_array(ceil(date('j', $today) / 7), $value) && ! in_array( - ceil((date('t', $today) - date('j', $today) + 1) / 7), $value))
                     {
-                        HarvestApp::Log("Skipping $clientName (not due to be invoiced today - wrong weekOfMonth)");
+                        HarvestApp::Log("Skipping $prettyTotal for $clientName (not due to be invoiced today - wrong weekOfMonth)");
 
                         continue 3;
                     }
