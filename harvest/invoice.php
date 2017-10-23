@@ -26,7 +26,8 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
     $times  = $curl->GetAllHarvest('time_entries', $query);
 
     // 2. collate them by client
-    $clientTimes = array();
+    $clientTimes   = array();
+    $clientTotals  = array();
 
     foreach ($times as $time)
     {
@@ -39,16 +40,24 @@ foreach ($HARVEST_INVOICES as $accountName => $invData)
 
         if ( ! isset($clientTimes[$clientId]))
         {
-            $clientTimes[$clientId] = array();
+            $clientTimes[$clientId]   = array();
+            $clientTotals[$clientId]  = 0;
         }
 
-        $clientTimes[$clientId][] = $time;
+        $clientTimes[$clientId][]  = $time;
+        $clientTotals[$clientId]  += $time['billable_rate'] ? round($time['hours'] * $time['billable_rate'], 2, PHP_ROUND_HALF_UP) : 0;
     }
 
     // 3. iterate through each client
     foreach ($clientTimes as $clientId => $invoiceTimes)
     {
         $clientName = $invoiceTimes[0]['client']['name'];
+
+        // skip if invoice total would be $0 (no billable time)
+        if ( ! $clientTotals[$clientId])
+        {
+            continue;
+        }
 
         // these settings are overridable per-client
         $showData           = $invData['showData'];
