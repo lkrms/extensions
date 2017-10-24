@@ -4,6 +4,8 @@ class HarvestApp
 {
     private static $LogPath;
 
+    private static $CurrentLog = '';
+
     public static function Autoload($className)
     {
         // don't attempt to autoload namespaced classes
@@ -38,8 +40,14 @@ class HarvestApp
 
     public static function Log($message)
     {
-        $message = '[' . date('r') . '] ' . $message . PHP_EOL;
+        $message           = '[' . date('r') . '] ' . $message . PHP_EOL;
+        self::$CurrentLog .= $message;
         file_put_contents(self::$LogPath, $message, FILE_APPEND);
+    }
+
+    public static function GetCurrentLog()
+    {
+        return self::$CurrentLog;
     }
 
     private static function GetDataFilePath($accountId)
@@ -130,6 +138,9 @@ class HarvestApp
 
         // keep count of invoices raised today
         $i = 1;
+
+        // so we can provide a dollar figure for our unbilled hours
+        $unbilledTotal = 0;
 
         foreach ($invoiceSettings as $accountName => $invData)
         {
@@ -240,6 +251,7 @@ class HarvestApp
                             if ( ! in_array(date('w', $today) + 0, $value))
                             {
                                 HarvestApp::Log("Skipping $prettyTotal for $clientName (not due to be invoiced today - wrong dayOfWeek, expecting " . implode(',', $value) . ")");
+                                $unbilledTotal += $total;
 
                                 continue 3;
                             }
@@ -252,6 +264,7 @@ class HarvestApp
                             if ( ! in_array(date('j', $today) + 0, $value) && ! in_array( - (date('t', $today) - date('j', $today) + 1), $value))
                             {
                                 HarvestApp::Log("Skipping $prettyTotal for $clientName (not due to be invoiced today - wrong dayOfMonth, expecting " . implode(',', $value) . ")");
+                                $unbilledTotal += $total;
 
                                 continue 3;
                             }
@@ -263,6 +276,7 @@ class HarvestApp
                             if ( ! in_array(ceil(date('j', $today) / 7), $value) && ! in_array( - ceil((date('t', $today) - date('j', $today) + 1) / 7), $value))
                             {
                                 HarvestApp::Log("Skipping $prettyTotal for $clientName (not due to be invoiced today - wrong weekOfMonth, expecting " . implode(',', $value) . ")");
+                                $unbilledTotal += $total;
 
                                 continue 3;
                             }
@@ -434,6 +448,16 @@ class HarvestApp
 
                 $i++;
             }
+        }
+
+        if ($unbilledTotal)
+        {
+            HarvestApp::Log('Total amount not yet billed: ' . self::FormatCurrency($unbilledTotal));
+        }
+
+        if (defined('HARVEST_REPORT_EMAIL'))
+        {
+            mail(HARVEST_REPORT_EMAIL, 'Harvest invoicing report for ' . date('j M', $today), self::GetCurrentLog());
         }
     }
 }
