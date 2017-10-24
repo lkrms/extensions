@@ -457,7 +457,7 @@ class HarvestApp
 
         if (defined('HARVEST_REPORT_EMAIL'))
         {
-            mail(HARVEST_REPORT_EMAIL, 'Harvest invoicing report for ' . date('j M', $today), self::GetCurrentLog());
+            mail(HARVEST_REPORT_EMAIL, 'Harvest invoicing report for ' . date('j M', $today), self::GetCurrentLog(), 'From: ' . HARVEST_REPORT_FROM_EMAIL);
         }
     }
 }

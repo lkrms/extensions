@@ -60,6 +60,8 @@ $HARVEST_SYNC_RELATIONSHIPS = array(
     )
 );
 
+define('HARVEST_REPORT_FROM_EMAIL', 'Automation Services <automagical@mydomain.com>');
+define('HARVEST_REPORT_EMAIL', 'accounts@mydomain.com');
 define('HARVEST_TIMEZONE', 'Australia/Sydney');
 
 ?>
