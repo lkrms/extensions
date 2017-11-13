@@ -136,11 +136,18 @@ class HarvestApp
             $today = time();
         }
 
+        $yesterday     = strtotime('-1 day', $today);
+        $yesterdayYmd  = date('Y-m-d', $yesterday);
+
         // keep count of invoices raised today
         $i = 1;
 
         // so we can provide a dollar figure for our unbilled hours
         $unbilledTotal = 0;
+
+        // and stats about yesterday
+        $billableYesterday       = 0;
+        $billableHoursYesterday  = 0;
 
         foreach ($invoiceSettings as $accountName => $invData)
         {
@@ -154,7 +161,7 @@ class HarvestApp
             $query = array(
                 'is_running' => 'false',
                 'is_billed'  => 'false',
-                'to'         => date('Y-m-d', strtotime('-1 day', $today)),
+                'to'         => $yesterdayYmd,
             );
 
             $curl   = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $headers);
@@ -187,6 +194,12 @@ class HarvestApp
                 $clientTotals[$clientId]        += $time['billable_rate'] ? round($time['hours'] * $time['billable_rate'], 2, PHP_ROUND_HALF_UP) : 0;
                 $clientHours[$clientId]         += $time['hours'];
                 $clientBillableHours[$clientId] += $time['billable'] ? $time['hours'] : 0;
+
+                if (date('Y-m-d', strtotime($time['spent_date'])) == $yesterdayYmd)
+                {
+                    $billableYesterday      += $time['billable_rate'] ? round($time['hours'] * $time['billable_rate'], 2, PHP_ROUND_HALF_UP) : 0;
+                    $billableHoursYesterday += $time['billable'] ? $time['hours'] : 0;
+                }
             }
 
             // 3. iterate through each client
@@ -456,6 +469,13 @@ class HarvestApp
 
                 $i++;
             }
+        }
+
+        HarvestApp::Log('Billable amount yesterday: ' . self::FormatCurrency($billableYesterday) . " ($billableHoursYesterday hours)");
+
+        if ($billableHoursYesterday)
+        {
+            HarvestApp::Log('Average hourly rate yesterday: ' . self::FormatCurrency($billableYesterday / $billableHoursYesterday));
         }
 
         if ($unbilledTotal)
