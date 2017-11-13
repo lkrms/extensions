@@ -161,8 +161,10 @@ class HarvestApp
             $times  = $curl->GetAllHarvest('time_entries', $query);
 
             // 2. collate them by client
-            $clientTimes   = array();
-            $clientTotals  = array();
+            $clientTimes          = array();
+            $clientTotals         = array();
+            $clientHours          = array();
+            $clientBillableHours  = array();
 
             foreach ($times as $time)
             {
@@ -175,12 +177,16 @@ class HarvestApp
 
                 if ( ! isset($clientTimes[$clientId]))
                 {
-                    $clientTimes[$clientId]   = array();
-                    $clientTotals[$clientId]  = 0;
+                    $clientTimes[$clientId]          = array();
+                    $clientTotals[$clientId]         = 0;
+                    $clientHours[$clientId]          = 0;
+                    $clientBillableHours[$clientId]  = 0;
                 }
 
-                $clientTimes[$clientId][]  = $time;
-                $clientTotals[$clientId]  += $time['billable_rate'] ? round($time['hours'] * $time['billable_rate'], 2, PHP_ROUND_HALF_UP) : 0;
+                $clientTimes[$clientId][]        = $time;
+                $clientTotals[$clientId]        += $time['billable_rate'] ? round($time['hours'] * $time['billable_rate'], 2, PHP_ROUND_HALF_UP) : 0;
+                $clientHours[$clientId]         += $time['hours'];
+                $clientBillableHours[$clientId] += $time['billable'] ? $time['hours'] : 0;
             }
 
             // 3. iterate through each client
@@ -194,8 +200,10 @@ class HarvestApp
                     continue;
                 }
 
-                $total        = $clientTotals[$clientId];
-                $prettyTotal  = HarvestApp::FormatCurrency($total);
+                $total               = $clientTotals[$clientId];
+                $totalHours          = $clientHours[$clientId];
+                $totalBillableHours  = $clientBillableHours[$clientId];
+                $prettyTotal         = HarvestApp::FormatCurrency($total);
 
                 // these settings are overridable per-client
                 $showData           = $invData['showData'];
@@ -250,7 +258,7 @@ class HarvestApp
 
                             if ( ! in_array(date('w', $today) + 0, $value))
                             {
-                                HarvestApp::Log("Skipping $prettyTotal for $clientName (not due to be invoiced today - wrong dayOfWeek, expecting " . implode(',', $value) . ")");
+                                HarvestApp::Log("Skipping $prettyTotal ($totalHours hours, $totalBillableHours billable) for $clientName (not due to be invoiced today - wrong dayOfWeek, expecting " . implode(',', $value) . ")");
                                 $unbilledTotal += $total;
 
                                 continue 3;
@@ -263,7 +271,7 @@ class HarvestApp
                             // negative numbers are counted from the end of the month
                             if ( ! in_array(date('j', $today) + 0, $value) && ! in_array( - (date('t', $today) - date('j', $today) + 1), $value))
                             {
-                                HarvestApp::Log("Skipping $prettyTotal for $clientName (not due to be invoiced today - wrong dayOfMonth, expecting " . implode(',', $value) . ")");
+                                HarvestApp::Log("Skipping $prettyTotal ($totalHours hours, $totalBillableHours billable) for $clientName (not due to be invoiced today - wrong dayOfMonth, expecting " . implode(',', $value) . ")");
                                 $unbilledTotal += $total;
 
                                 continue 3;
@@ -275,7 +283,7 @@ class HarvestApp
 
                             if ( ! in_array(ceil(date('j', $today) / 7), $value) && ! in_array( - ceil((date('t', $today) - date('j', $today) + 1) / 7), $value))
                             {
-                                HarvestApp::Log("Skipping $prettyTotal for $clientName (not due to be invoiced today - wrong weekOfMonth, expecting " . implode(',', $value) . ")");
+                                HarvestApp::Log("Skipping $prettyTotal ($totalHours hours, $totalBillableHours billable) for $clientName (not due to be invoiced today - wrong weekOfMonth, expecting " . implode(',', $value) . ")");
                                 $unbilledTotal += $total;
 
                                 continue 3;
@@ -393,7 +401,7 @@ class HarvestApp
                     'clientName'  => $clientName,
                 );
 
-                HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']})");
+                HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - $totalHours hours, $totalBillableHours billable)");
 
                 foreach ($markAsBilled as $t)
                 {
