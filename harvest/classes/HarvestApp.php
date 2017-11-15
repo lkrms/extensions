@@ -169,13 +169,15 @@ class HarvestApp
 
             // 2. collate them by client
             $clientTimes          = array();
+            $clientProjects       = array();
             $clientTotals         = array();
             $clientHours          = array();
             $clientBillableHours  = array();
 
             foreach ($times as $time)
             {
-                $clientId = $time['client']['id'];
+                $clientId   = $time['client']['id'];
+                $projectId  = $time['project']['id'];
 
                 if (in_array($clientId, $invData['excludeClients']) || in_array($time['id'], $dataFile['billedTimes']))
                 {
@@ -185,12 +187,19 @@ class HarvestApp
                 if ( ! isset($clientTimes[$clientId]))
                 {
                     $clientTimes[$clientId]          = array();
+                    $clientProjects[$clientId]       = array();
                     $clientTotals[$clientId]         = 0;
                     $clientHours[$clientId]          = 0;
                     $clientBillableHours[$clientId]  = 0;
                 }
 
-                $clientTimes[$clientId][]        = $time;
+                $clientTimes[$clientId][] = $time;
+
+                if ( ! in_array($projectId, $clientProjects[$clientId]))
+                {
+                    $clientProjects[$clientId][] = $projectId;
+                }
+
                 $clientTotals[$clientId]        += $time['billable_rate'] ? round($time['hours'] * $time['billable_rate'], 2, PHP_ROUND_HALF_UP) : 0;
                 $clientHours[$clientId]         += $time['hours'];
                 $clientBillableHours[$clientId] += $time['billable'] ? $time['hours'] : 0;
@@ -225,6 +234,11 @@ class HarvestApp
                 $daysToPay          = $invData['daysToPay'];
                 $sendEmail          = $invData['sendEmail'];
 
+                // by default, generate one invoice that covers all projects for this client
+                $invoiceBatches = array(
+                    $clientProjects[$clientId],
+                );
+
                 if (isset($invData['customClients'][$clientId]['showData']))
                 {
                     $showData = $invData['customClients'][$clientId]['showData'];
@@ -248,6 +262,31 @@ class HarvestApp
                 if (isset($invData['customClients'][$clientId]['sendEmail']))
                 {
                     $sendEmail = $invData['customClients'][$clientId]['sendEmail'];
+                }
+
+                if (isset($invData['customClients'][$clientId]['projectContacts']))
+                {
+                    $invoiceBatches  = array();
+                    $lastBatch       = $clientProjects[$clientId];
+
+                    foreach ($invData['customClients'][$clientId]['projectContacts'] as $projectId => $contacts)
+                    {
+                        if (in_array($projectId, $lastBatch))
+                        {
+                            $invoiceBatches[] = array(
+                                $projectId
+                            );
+
+                            // remove this project from our last batch (which catches any left-overs)
+                            $k = array_search($projectId, $lastBatch);
+                            unset($lastBatch[$k]);
+                        }
+                    }
+
+                    if ($lastBatch)
+                    {
+                        $invoiceBatches[] = $lastBatch;
+                    }
                 }
 
                 // do we invoice this client today?
@@ -311,163 +350,186 @@ class HarvestApp
                 }
 
                 // yes, we do! build it out
-                $lineItems     = array();
-                $markAsBilled  = array();
-
-                foreach ($invoiceTimes as $t)
+                foreach ($invoiceBatches as $batch)
                 {
-                    if ( ! $includeUnbillable && ! $t['billable'])
+                    $lineItems     = array();
+                    $markAsBilled  = array();
+
+                    foreach ($invoiceTimes as $t)
                     {
-                        continue;
+                        // skip this entry if it doesn't relate to a project we're invoicing for
+                        if ( ! in_array($t['project']['id'], $batch))
+                        {
+                            continue;
+                        }
+
+                        if ( ! $includeUnbillable && ! $t['billable'])
+                        {
+                            continue;
+                        }
+
+                        $show       = array();
+                        $finalShow  = array();
+
+                        if (in_array('date', $showData))
+                        {
+                            $show[] = date($invData['dateFormat'], strtotime($t['spent_date']));
+                        }
+
+                        if (in_array('time', $showData) && $t['started_time'] && $t['ended_time'])
+                        {
+                            $show[] = "{$t['started_time']} - {$t['ended_time']}";
+                        }
+
+                        if ($show)
+                        {
+                            $finalShow[]  = '[' . implode(' ', $show) . ']';
+                            $show         = array();
+                        }
+
+                        if (in_array('project', $showData))
+                        {
+                            $show[] = $t['project']['name'];
+                        }
+
+                        if (in_array('task', $showData))
+                        {
+                            $show[] = $t['task']['name'];
+                        }
+
+                        if ($show)
+                        {
+                            $finalShow[] = implode(' - ', $show);
+                        }
+
+                        if (in_array('people', $showData))
+                        {
+                            $finalShow[] = "({$t['user']['name']})";
+                        }
+
+                        $show = '';
+
+                        if ($finalShow)
+                        {
+                            $show = implode(' ', $finalShow);
+                        }
+
+                        if (in_array('notes', $showData) && $t['notes'])
+                        {
+                            $show .= ($show ? "\n" : '') . $t['notes'];
+                        }
+
+                        $sortKey = date('YmdHis', strtotime("{$t['spent_date']} {$t['started_time']}")) . '-' . $t['id'];
+
+                        // attempt to store with a meaningfully sortable key
+                        $lineItems[$sortKey] = array(
+                            'project_id'  => $t['project']['id'],
+                            'kind'        => $invData['itemKind'],
+                            'description' => $show,
+                            'quantity'    => $t['hours'],
+                            'unit_price'  => $t['billable_rate'],
+                        );
+
+                        $markAsBilled[] = $t;
                     }
 
-                    $show       = array();
-                    $finalShow  = array();
+                    ksort($lineItems);
 
-                    if (in_array('date', $showData))
-                    {
-                        $show[] = date($invData['dateFormat'], strtotime($t['spent_date']));
-                    }
-
-                    if (in_array('time', $showData) && $t['started_time'] && $t['ended_time'])
-                    {
-                        $show[] = "{$t['started_time']} - {$t['ended_time']}";
-                    }
-
-                    if ($show)
-                    {
-                        $finalShow[]  = '[' . implode(' ', $show) . ']';
-                        $show         = array();
-                    }
-
-                    if (in_array('project', $showData))
-                    {
-                        $show[] = $t['project']['name'];
-                    }
-
-                    if (in_array('task', $showData))
-                    {
-                        $show[] = $t['task']['name'];
-                    }
-
-                    if ($show)
-                    {
-                        $finalShow[] = implode(' - ', $show);
-                    }
-
-                    if (in_array('people', $showData))
-                    {
-                        $finalShow[] = "({$t['user']['name']})";
-                    }
-
-                    $show = '';
-
-                    if ($finalShow)
-                    {
-                        $show = implode(' ', $finalShow);
-                    }
-
-                    if (in_array('notes', $showData) && $t['notes'])
-                    {
-                        $show .= ($show ? "\n" : '') . $t['notes'];
-                    }
-
-                    $sortKey = date('YmdHis', strtotime("{$t['spent_date']} {$t['started_time']}")) . '-' . $t['id'];
-
-                    // attempt to store with a meaningfully sortable key
-                    $lineItems[$sortKey] = array(
-                        'project_id'  => $t['project']['id'],
-                        'kind'        => $invData['itemKind'],
-                        'description' => $show,
-                        'quantity'    => $t['hours'],
-                        'unit_price'  => $t['billable_rate'],
+                    // assemble invoice data for Harvest
+                    $data = array(
+                        'client_id'  => $clientId,
+                        'number'     => 'H-' . date('ymd', $today) . sprintf('%02d', $i),
+                        'notes'      => $invData['notes'],
+                        'issue_date' => date('Y-m-d'),
+                        'due_date'   => date('Y-m-d', time() + ($daysToPay * 24 * 60 * 60)),
+                        'line_items' => array_values($lineItems),
                     );
 
-                    $markAsBilled[] = $t;
-                }
+                    // create a new invoice
+                    $curl     = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
+                    $invoice  = $curl->PostJson($data);
 
-                ksort($lineItems);
+                    // success! prepare the data for substituting into templates
+                    $invoiceData = array(
+                        'id'          => $invoice['id'],
+                        'number'      => $invoice['number'],
+                        'amount'      => HarvestApp::FormatCurrency($invoice['amount']) . ' ' . $invoice['currency'],
+                        'dueAmount'   => HarvestApp::FormatCurrency($invoice['due_amount']) . ' ' . $invoice['currency'],
+                        'issueDate'   => date($invData['dateFormat'], strtotime($invoice['issue_date'])),
+                        'dueDate'     => date($invData['dateFormat'], strtotime($invoice['due_date'])),
+                        'companyName' => $account->CompanyName,
+                        'clientName'  => $clientName,
+                    );
 
-                // assemble invoice data for Harvest
-                $data = array(
-                    'client_id'  => $clientId,
-                    'number'     => 'H-' . date('ymd', $today) . sprintf('%02d', $i),
-                    'notes'      => $invData['notes'],
-                    'issue_date' => date('Y-m-d'),
-                    'due_date'   => date('Y-m-d', time() + ($daysToPay * 24 * 60 * 60)),
-                    'line_items' => array_values($lineItems),
-                );
+                    HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - $totalHours hours, $totalBillableHours billable)");
 
-                // create a new invoice
-                $curl     = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
-                $invoice  = $curl->PostJson($data);
-
-                // success! prepare the data for substituting into templates
-                $invoiceData = array(
-                    'id'          => $invoice['id'],
-                    'number'      => $invoice['number'],
-                    'amount'      => HarvestApp::FormatCurrency($invoice['amount']) . ' ' . $invoice['currency'],
-                    'dueAmount'   => HarvestApp::FormatCurrency($invoice['due_amount']) . ' ' . $invoice['currency'],
-                    'issueDate'   => date($invData['dateFormat'], strtotime($invoice['issue_date'])),
-                    'dueDate'     => date($invData['dateFormat'], strtotime($invoice['due_date'])),
-                    'companyName' => $account->CompanyName,
-                    'clientName'  => $clientName,
-                );
-
-                HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - $totalHours hours, $totalBillableHours billable)");
-
-                foreach ($markAsBilled as $t)
-                {
-                    $dataFile['billedTimes'][] = $t['id'];
-                }
-
-                // save after every invoice
-                HarvestApp::SaveDataFile($account->GetAccountId(), $dataFile);
-
-                if ($sendEmail)
-                {
-                    $curl      = new Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
-                    $contacts  = $curl->GetAllHarvest('contacts', array(
-                        'client_id' => $clientId
-                    ));
-                    $recipients = array();
-
-                    foreach ($contacts as $contact)
+                    foreach ($markAsBilled as $t)
                     {
-                        if ($contact['email'])
+                        $dataFile['billedTimes'][] = $t['id'];
+                    }
+
+                    // save after every invoice
+                    HarvestApp::SaveDataFile($account->GetAccountId(), $dataFile);
+
+                    if ($sendEmail)
+                    {
+                        $curl      = new Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
+                        $contacts  = $curl->GetAllHarvest('contacts', array(
+                            'client_id' => $clientId
+                        ));
+                        $allowedContacts = null;
+
+                        if (count($batch) == 1 && isset($invData['customClients'][$clientId]['projectContacts'][$batch[0]]))
                         {
-                            $recipients[] = array(
-                                'name'  => trim("{$contact['first_name']} {$contact['last_name']}"),
-                                'email' => $contact['email']
+                            $allowedContacts = $invData['customClients'][$clientId]['projectContacts'][$batch[0]];
+
+                            if ( ! is_array($allowedContacts))
+                            {
+                                $allowedContacts = array(
+                                    $allowedContacts
+                                );
+                            }
+                        }
+
+                        $recipients = array();
+
+                        foreach ($contacts as $contact)
+                        {
+                            if ($contact['email'] && (is_null($allowedContacts) || in_array($contact['id'], $allowedContacts)))
+                            {
+                                $recipients[] = array(
+                                    'name'  => trim("{$contact['first_name']} {$contact['last_name']}"),
+                                    'email' => $contact['email']
+                                );
+                            }
+                        }
+
+                        if ($recipients)
+                        {
+                            // send invoice to client
+                            $emailSubject  = HarvestApp::FillTemplate($invData['emailSubject'], $invoiceData);
+                            $emailBody     = HarvestApp::FillTemplate($invData['emailBody'], $invoiceData);
+                            $messageData   = array(
+                                'recipients' => $recipients,
+                                'subject'    => $emailSubject,
+                                'body'       => $emailBody,
+                                'include_link_to_client_invoice' => true,
+                                'attach_pdf'                     => true,
+                                'send_me_a_copy'                 => true,
                             );
+
+                            $curl    = new Curler(HARVEST_API_ROOT . "/v2/invoices/{$invoiceData['id']}/messages", $headers);
+                            $result  = $curl->PostJson($messageData);
+                            HarvestApp::Log("Emailed invoice {$invoiceData['number']} to $clientName with message id {$result['id']}");
+                        }
+                        else
+                        {
+                            HarvestApp::Log("Unable to email invoice {$invoiceData['number']} to $clientName (no suitable contacts)");
                         }
                     }
 
-                    if ($recipients)
-                    {
-                        // send invoice to client
-                        $emailSubject  = HarvestApp::FillTemplate($invData['emailSubject'], $invoiceData);
-                        $emailBody     = HarvestApp::FillTemplate($invData['emailBody'], $invoiceData);
-                        $messageData   = array(
-                            'recipients' => $recipients,
-                            'subject'    => $emailSubject,
-                            'body'       => $emailBody,
-                            'include_link_to_client_invoice' => true,
-                            'attach_pdf'                     => true,
-                            'send_me_a_copy'                 => true,
-                        );
-
-                        $curl    = new Curler(HARVEST_API_ROOT . "/v2/invoices/{$invoiceData['id']}/messages", $headers);
-                        $result  = $curl->PostJson($messageData);
-                        HarvestApp::Log("Emailed invoice {$invoiceData['number']} to $clientName with message id {$result['id']}");
-                    }
-                    else
-                    {
-                        HarvestApp::Log("Unable to email invoice {$invoiceData['number']} to $clientName (no suitable contacts)");
-                    }
+                    $i++;
                 }
-
-                $i++;
             }
         }
 

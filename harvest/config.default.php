@@ -17,7 +17,7 @@ $HARVEST_INVOICES = array(
     'harvest1' => array(
         'excludeClients' => array(          // add numeric IDs here to completely skip particular clients
         ),
-        'customClients' => array(           // index by client ID, elements should be arrays with 'showData', 'invoiceOn', 'includeUnbillable', 'daysToPay', and/or 'sendEmail'
+        'customClients' => array(           // index by client ID, elements should be arrays with 'showData', 'invoiceOn', 'includeUnbillable', 'daysToPay', 'sendEmail', and/or 'projectContacts' (mapping from project ID to one or more contact ID's)
         ),
         'showData' => array(
             'project',
