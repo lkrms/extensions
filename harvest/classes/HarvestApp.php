@@ -145,6 +145,9 @@ class HarvestApp
         // so we can provide a dollar figure for our unbilled hours
         $unbilledTotal = 0;
 
+        // and invoices issued today
+        $invoicedTotal = 0;
+
         // and stats about yesterday
         $billableYesterday       = 0;
         $billableHoursYesterday  = 0;
@@ -352,8 +355,10 @@ class HarvestApp
                 // yes, we do! build it out
                 foreach ($invoiceBatches as $batch)
                 {
-                    $lineItems     = array();
-                    $markAsBilled  = array();
+                    $batchTotalHours          = 0;
+                    $batchTotalBillableHours  = 0;
+                    $lineItems                = array();
+                    $markAsBilled             = array();
 
                     foreach ($invoiceTimes as $t)
                     {
@@ -368,6 +373,11 @@ class HarvestApp
                             continue;
                         }
 
+                        // keep running totals
+                        $batchTotalHours         += $t['hours'];
+                        $batchTotalBillableHours += $t['billable'] ? $t['hours'] : 0;
+
+                        // generate pretty line item descriptions
                         $show       = array();
                         $finalShow  = array();
 
@@ -461,7 +471,8 @@ class HarvestApp
                         'clientName'  => $clientName,
                     );
 
-                    HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - $totalHours hours, $totalBillableHours billable)");
+                    $invoicedTotal += $invoice['amount'];
+                    HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - $batchTotalHours hours, $batchTotalBillableHours billable)");
 
                     foreach ($markAsBilled as $t)
                     {
@@ -531,6 +542,11 @@ class HarvestApp
                     $i++;
                 }
             }
+        }
+
+        if ($invoicedTotal)
+        {
+            HarvestApp::Log('Total amount invoiced: ' . self::FormatCurrency($invoicedTotal));
         }
 
         HarvestApp::Log('Billable amount yesterday: ' . self::FormatCurrency($billableYesterday) . " ($billableHoursYesterday hours)");
