@@ -17,7 +17,7 @@ $HARVEST_INVOICES = array(
     'harvest1' => array(
         'excludeClients' => array(          // add numeric IDs here to completely skip particular clients
         ),
-        'customClients' => array(           // index by client ID, elements should be arrays with 'showData', 'invoiceOn', 'includeUnbillable', 'daysToPay', 'sendEmail', and/or 'projectContacts' (mapping from project ID to one or more contact ID's)
+        'customClients' => array(           // index by client ID, elements should be arrays with 'showData', 'invoiceOn', 'includeUnbillable', 'invoiceMinimum', 'daysToPay', 'sendEmail', and/or 'projectContacts' (mapping from project ID to one or more contact ID's)
         ),
         'showData' => array(
             'project',
@@ -33,6 +33,7 @@ $HARVEST_INVOICES = array(
             'weekOfMonth' => null,          // e.g. for last Friday of the month, use -1 here and 5 for dayOfWeek
         ),
         'includeUnbillable' => true,
+        'invoiceMinimum'    => 0,           // invoices will not be raised until they exceed this value
         'daysToPay'         => 7,
         'sendEmail'         => true,
         'dateFormat'        => 'd/m/Y',

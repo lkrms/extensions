@@ -217,14 +217,7 @@ class HarvestApp
             // 3. iterate through each client
             foreach ($clientTimes as $clientId => $invoiceTimes)
             {
-                $clientName = $invoiceTimes[0]['client']['name'];
-
-                // skip if invoice total would be $0 (no billable time)
-                if ( ! $clientTotals[$clientId])
-                {
-                    continue;
-                }
-
+                $clientName          = $invoiceTimes[0]['client']['name'];
                 $total               = $clientTotals[$clientId];
                 $totalHours          = $clientHours[$clientId];
                 $totalBillableHours  = $clientBillableHours[$clientId];
@@ -234,6 +227,7 @@ class HarvestApp
                 $showData           = $invData['showData'];
                 $invoiceOn          = $invData['invoiceOn'];
                 $includeUnbillable  = $invData['includeUnbillable'];
+                $invoiceMinimum     = $invData['invoiceMinimum'];
                 $daysToPay          = $invData['daysToPay'];
                 $sendEmail          = $invData['sendEmail'];
 
@@ -255,6 +249,11 @@ class HarvestApp
                 if (isset($invData['customClients'][$clientId]['includeUnbillable']))
                 {
                     $includeUnbillable = $invData['customClients'][$clientId]['includeUnbillable'];
+                }
+
+                if (isset($invData['customClients'][$clientId]['invoiceMinimum']))
+                {
+                    $invoiceMinimum = $invData['customClients'][$clientId]['invoiceMinimum'];
                 }
 
                 if (isset($invData['customClients'][$clientId]['daysToPay']))
@@ -355,6 +354,7 @@ class HarvestApp
                 // yes, we do! build it out
                 foreach ($invoiceBatches as $batch)
                 {
+                    $batchTotal               = 0;
                     $batchTotalHours          = 0;
                     $batchTotalBillableHours  = 0;
                     $lineItems                = array();
@@ -368,14 +368,15 @@ class HarvestApp
                             continue;
                         }
 
+                        // keep running totals
+                        $batchTotal              += $t['billable_rate'] ? round($t['hours'] * $t['billable_rate'], 2, PHP_ROUND_HALF_UP) : 0;
+                        $batchTotalHours         += $t['hours'];
+                        $batchTotalBillableHours += $t['billable'] ? $t['hours'] : 0;
+
                         if ( ! $includeUnbillable && ! $t['billable'])
                         {
                             continue;
                         }
-
-                        // keep running totals
-                        $batchTotalHours         += $t['hours'];
-                        $batchTotalBillableHours += $t['billable'] ? $t['hours'] : 0;
 
                         // generate pretty line item descriptions
                         $show       = array();
@@ -441,6 +442,14 @@ class HarvestApp
                         );
 
                         $markAsBilled[] = $t;
+                    }
+
+                    // skip if this would be a below-minimum invoice
+                    if ($batchTotal < $invoiceMinimum)
+                    {
+                        HarvestApp::Log("Skipping batch ($batchTotalHours hours, $batchTotalBillableHours billable) for $clientName (minimum invoice value not reached)");
+
+                        continue;
                     }
 
                     ksort($lineItems);
