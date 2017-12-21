@@ -445,7 +445,7 @@ class HarvestApp
                     }
 
                     // skip if this would be a below-minimum invoice
-                    if ($batchTotal < $invoiceMinimum)
+                    if ($batchTotal < $invoiceMinimum || ! $batchTotal)
                     {
                         HarvestApp::Log("Skipping batch ($batchTotalHours hours, $batchTotalBillableHours billable) for $clientName (minimum invoice value not reached)");
 
