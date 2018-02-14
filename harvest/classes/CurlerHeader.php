@@ -2,7 +2,7 @@
 
 class CurlerHeader
 {
-    private $Headers = array('User-Agent' => 'User-Agent:Curler PHP library (https://github.com/lkrms/extensions)');
+    private $Headers = array('user-agent' => 'User-Agent:Curler PHP library (https://github.com/lkrms/extensions)');
 
     public function SetHeader($name, $value)
     {
