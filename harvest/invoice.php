@@ -18,6 +18,4 @@ if ($argc > 1)
     }
 }
 
-HarvestApp::RaiseInvoices($HARVEST_INVOICES, $today);
-
-?>
+HarvestApp::RaiseInvoices($HARVEST_INVOICES, $HARVEST_RECURRING_INVOICES, $today);

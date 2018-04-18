@@ -129,7 +129,7 @@ class HarvestApp
         return $template;
     }
 
-    public static function RaiseInvoices( array $invoiceSettings, $today = null)
+    public static function RaiseInvoices( array $invoiceSettings, array $recurringInvoiceSettings, $today = null)
     {
         if (is_null($today))
         {
@@ -138,6 +138,7 @@ class HarvestApp
 
         $yesterday     = strtotime('-1 day', $today);
         $yesterdayYmd  = date('Y-m-d', $yesterday);
+        $nextMonth     = strtotime('+1 month', $today);
 
         // keep count of invoices raised today
         $i = 1;
@@ -550,6 +551,222 @@ class HarvestApp
 
                     $i++;
                 }
+            }
+        }
+
+        foreach ($recurringInvoiceSettings as $accountName => $invData)
+        {
+            $account  = HarvestCredentials::FromName($accountName);
+            $headers  = $account->GetHeaders();
+
+            // iterate through each recurring invoice
+            foreach ($invData['invoices'] as $recurringId => $recurring)
+            {
+                $clientId = $recurring['clientId'];
+
+                // retrieve name of client
+                $curl        = new Curler(HARVEST_API_ROOT . "/v2/clients/$clientId", $headers);
+                $client      = $curl->GetJson();
+                $clientName  = $client['name'];
+
+                // these settings are overridable per-invoice
+                $invoiceOn  = $invData['invoiceOn'];
+                $daysToPay  = $invData['daysToPay'];
+                $sendEmail  = $invData['sendEmail'];
+
+                if (isset($recurring['invoiceOn']))
+                {
+                    $invoiceOn = $recurring['invoiceOn'];
+                }
+
+                if (isset($recurring['daysToPay']))
+                {
+                    $daysToPay = $recurring['daysToPay'];
+                }
+
+                if (isset($recurring['sendEmail']))
+                {
+                    $sendEmail = $recurring['sendEmail'];
+                }
+
+                // do we issue this invoice today?
+                foreach ($invoiceOn as $filter => $value)
+                {
+                    if (is_null($value))
+                    {
+                        continue;
+                    }
+
+                    if ( ! is_array($value))
+                    {
+                        $value = array(
+                            $value
+                        );
+                    }
+
+                    switch ($filter)
+                    {
+                        case 'dayOfWeek':
+
+                            if ( ! in_array(date('w', $today) + 0, $value))
+                            {
+                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong dayOfWeek, expecting " . implode(',', $value) . ")");
+
+                                continue 3;
+                            }
+
+                            break;
+
+                        case 'dayOfMonth':
+
+                            // negative numbers are counted from the end of the month
+                            if ( ! in_array(date('j', $today) + 0, $value) && ! in_array( - (date('t', $today) - date('j', $today) + 1), $value))
+                            {
+                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong dayOfMonth, expecting " . implode(',', $value) . ")");
+
+                                continue 3;
+                            }
+
+                            break;
+
+                        case 'weekOfMonth':
+
+                            if ( ! in_array(ceil(date('j', $today) / 7), $value) && ! in_array( - ceil((date('t', $today) - date('j', $today) + 1) / 7), $value))
+                            {
+                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong weekOfMonth, expecting " . implode(',', $value) . ")");
+
+                                continue 3;
+                            }
+
+                            break;
+
+                        default:
+
+                            throw new Exception("Unknown 'invoiceOn' entry '$filter'");
+                    }
+                }
+
+                // yes, we do! build it out
+                $invoiceTotal  = 0;
+                $lineItems     = $recurring['lineItems'];
+
+                // these values are available for substitution in line item descriptions
+                $invoiceData = array(
+                    'thisMonthName'      => date('F', $today),
+                    'nextMonthName'      => date('F', $nextMonth),
+                    'thisMonthNameShort' => date('M', $today),
+                    'nextMonthNameShort' => date('M', $nextMonth),
+                    'thisMonthYear'      => date('Y', $today),
+                    'nextMonthYear'      => date('Y', $nextMonth),
+                    'companyName'        => $account->CompanyName,
+                    'clientName'         => $clientName,
+                );
+
+                foreach ($lineItems as & $lineItem)
+                {
+                    if (isset($lineItem['description']))
+                    {
+                        $lineItem['description'] = HarvestApp::FillTemplate($lineItem['description'], $invoiceData);
+                    }
+
+                    $invoiceTotal += (isset($lineItem['quantity']) ? $lineItem['quantity'] : 1) * $lineItem['unit_price'];
+                }
+
+                // don't leave any stray references around
+                unset($lineItem);
+
+                // skip if this would be a zero-value invoice
+                if ( ! $invoiceTotal)
+                {
+                    HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (minimum invoice value not reached)");
+
+                    continue;
+                }
+
+                // assemble invoice data for Harvest
+                $data = array(
+                    'client_id'  => $clientId,
+                    'number'     => 'H-' . date('ymd', $today) . sprintf('%02d', $i),
+                    'notes'      => $invData['notes'],
+                    'issue_date' => date('Y-m-d'),
+                    'due_date'   => date('Y-m-d', time() + ($daysToPay * 24 * 60 * 60)),
+                    'line_items' => $lineItems,
+                );
+
+                // create a new invoice
+                $curl     = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
+                $invoice  = $curl->PostJson($data);
+
+                // success! prepare the data for substituting into templates
+                $invoiceData = array_merge($invoiceData, array(
+                    'id'        => $invoice['id'],
+                    'number'    => $invoice['number'],
+                    'amount'    => HarvestApp::FormatCurrency($invoice['amount']) . ' ' . $invoice['currency'],
+                    'dueAmount' => HarvestApp::FormatCurrency($invoice['due_amount']) . ' ' . $invoice['currency'],
+                    'issueDate' => date($invData['dateFormat'], strtotime($invoice['issue_date'])),
+                    'dueDate'   => date($invData['dateFormat'], strtotime($invoice['due_date'])),
+                ));
+                $invoicedTotal += $invoice['amount'];
+                HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - recurring invoice #$recurringId)");
+
+                if ($sendEmail)
+                {
+                    $curl      = new Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
+                    $contacts  = $curl->GetAllHarvest('contacts', array(
+                        'client_id' => $clientId
+                    ));
+                    $allowedContacts = null;
+
+                    if (isset($recurring['contacts']))
+                    {
+                        $allowedContacts = $recurring['contacts'];
+
+                        if ( ! is_array($allowedContacts))
+                        {
+                            $allowedContacts = array(
+                                $allowedContacts
+                            );
+                        }
+                    }
+
+                    $recipients = array();
+
+                    foreach ($contacts as $contact)
+                    {
+                        if ($contact['email'] && (is_null($allowedContacts) || in_array($contact['id'], $allowedContacts)))
+                        {
+                            $recipients[] = array(
+                                'name'  => trim("{$contact['first_name']} {$contact['last_name']}"),
+                                'email' => $contact['email']
+                            );
+                        }
+                    }
+
+                    if ($recipients)
+                    {
+                        // send invoice to client
+                        $emailSubject  = HarvestApp::FillTemplate($invData['emailSubject'], $invoiceData);
+                        $emailBody     = HarvestApp::FillTemplate($invData['emailBody'], $invoiceData);
+                        $messageData   = array(
+                            'recipients' => $recipients,
+                            'subject'    => $emailSubject,
+                            'body'       => $emailBody,
+                            'include_link_to_client_invoice' => true,
+                            'attach_pdf'                     => true,
+                            'send_me_a_copy'                 => true,
+                        );
+
+                        $curl    = new Curler(HARVEST_API_ROOT . "/v2/invoices/{$invoiceData['id']}/messages", $headers);
+                        $result  = $curl->PostJson($messageData);
+                        HarvestApp::Log("Emailed invoice {$invoiceData['number']} to $clientName with message id {$result['id']}");
+                    }
+                    else
+                    {
+                        HarvestApp::Log("Unable to email invoice {$invoiceData['number']} to $clientName (no suitable contacts)");
+                    }
+                }
+
+                $i++;
             }
         }
 

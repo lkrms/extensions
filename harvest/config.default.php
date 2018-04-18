@@ -44,6 +44,40 @@ $HARVEST_INVOICES = array(
     ),
 );
 
+// indexed by name (must match an index in $HARVEST_ACCOUNTS)
+$HARVEST_RECURRING_INVOICES = array(
+    'harvest1' => array(
+        'invoices' => array(                            // each array must contain 'clientId' and 'lineItems'; 'contacts', 'invoiceOn', 'daysToPay', and 'sendEmail' are optional and override the defaults
+            array(
+                'clientId'  => 5000000,
+                'lineItems' => array(                   // for each item, 'kind' and 'unit_price' are required; 'project_id', 'description', 'quantity', 'taxed', and 'taxed2' are also available
+                    array(
+                        'kind'        => 'Service',     // must match the name of a service item type under Invoices > Configure > Item Types in Harvest
+                        'description' => "Monthly retainer: [[nextMonthName]] [[nextMonthYear]]\n- maximum 2-hour response time during business hours (9am-5pm Mon-Fri)\n- consulting tasks and projects will be quoted and billed separately as required",
+                        'quantity'    => 1,
+                        'unit_price'  => 120,
+                    ),
+                ),
+                'contacts'  => array(                   // if contact ID's are not provided, ALL contacts with email addresses will receive the invoice
+                    4000000,
+                    4000001,
+                ),
+            )
+        ),
+        'invoiceOn' => array(           // all non-null entries must match for invoice to be raised
+            'dayOfWeek'   => 3,         // 0-6, Sunday-Saturday
+            'dayOfMonth'  => null,      // negative numbers are measured from end of month
+            'weekOfMonth' => -2,        // e.g. for last Friday of the month, use -1 here and 5 for dayOfWeek
+        ),
+        'daysToPay'    => 7,
+        'sendEmail'    => true,
+        'dateFormat'   => 'd/m/Y',
+        'notes'        => "We accept payment by direct deposit, cheque, VISA, or MasterCard.\n\nIf paying by direct deposit or cheque, please provide your invoice number with your payment.",
+        'emailSubject' => "Invoice [[number]] from [[companyName]] for [[clientName]]",
+        'emailBody'    => "Hi [[clientName]],\r\n\r\nHere's invoice [[number]] for [[amount]].\r\n\r\nThe amount outstanding of [[dueAmount]] is due on [[dueDate]].\r\n\r\nThe detailed invoice is attached as a PDF.\r\n\r\nIf you have any questions, please let us know.\r\n\r\nThanks,\r\n[[companyName]]",
+    ),
+);
+
 // one or more source/target sets
 $HARVEST_SYNC_RELATIONSHIPS = array(
     array(
