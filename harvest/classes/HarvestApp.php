@@ -346,6 +346,30 @@ class HarvestApp
 
                             break;
 
+                        case 'exactDate':
+
+                            $isToday = false;
+
+                            foreach ($value as $exactDate)
+                            {
+                                if (date('Y-m-d', strtotime($exactDate)) == date('Y-m-d', $today))
+                                {
+                                    $isToday = true;
+
+                                    break;
+                                }
+                            }
+
+                            if ( ! $isToday)
+                            {
+                                HarvestApp::Log("Skipping $prettyTotal ($totalHours hours, $totalBillableHours billable) for $clientName (not due to be invoiced today - wrong exactDate)");
+                                $unbilledTotal += $total;
+
+                                continue 3;
+                            }
+
+                            break;
+
                         default:
 
                             throw new Exception("Unknown 'invoiceOn' entry '$filter'");
@@ -634,6 +658,29 @@ class HarvestApp
                             if ( ! in_array(ceil(date('j', $today) / 7), $value) && ! in_array( - ceil((date('t', $today) - date('j', $today) + 1) / 7), $value))
                             {
                                 HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong weekOfMonth, expecting " . implode(',', $value) . ")");
+
+                                continue 3;
+                            }
+
+                            break;
+
+                        case 'exactDate':
+
+                            $isToday = false;
+
+                            foreach ($value as $exactDate)
+                            {
+                                if (date('Y-m-d', strtotime($exactDate)) == date('Y-m-d', $today))
+                                {
+                                    $isToday = true;
+
+                                    break;
+                                }
+                            }
+
+                            if ( ! $isToday)
+                            {
+                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong exactDate)");
 
                                 continue 3;
                             }

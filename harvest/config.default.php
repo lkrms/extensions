@@ -31,6 +31,7 @@ $HARVEST_INVOICES = array(
             'dayOfWeek'   => 5,             // 0-6, Sunday-Saturday
             'dayOfMonth'  => null,          // negative numbers are measured from end of month
             'weekOfMonth' => null,          // e.g. for last Friday of the month, use -1 here and 5 for dayOfWeek
+            'exactDate'   => null,          // an array of dates that can be reliably parsed by strtotime (yyyy-mm-dd recommended)
         ),
         'includeUnbillable' => true,
         'invoiceMinimum'    => 0,           // invoices will not be raised until they exceed this value
@@ -68,6 +69,7 @@ $HARVEST_RECURRING_INVOICES = array(
             'dayOfWeek'   => 3,         // 0-6, Sunday-Saturday
             'dayOfMonth'  => null,      // negative numbers are measured from end of month
             'weekOfMonth' => -2,        // e.g. for last Friday of the month, use -1 here and 5 for dayOfWeek
+            'exactDate'   => null,      // an array of dates that can be reliably parsed by strtotime (yyyy-mm-dd recommended)
         ),
         'daysToPay'    => 7,
         'sendEmail'    => true,
