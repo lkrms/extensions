@@ -54,7 +54,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     );
 
     $curl          = new Curler(HARVEST_API_ROOT . "/v2/projects/{$syncData['targetProjectId']}/task_assignments", $targetHeaders);
-    $targetTasks   = $curl->GetAllHarvest('task_assignments', $query);
+    $targetTasks   = $curl->GetAllLinkedByEntity('task_assignments', $query);
     $targetTaskId  = null;
 
     foreach ($targetTasks as $targetTask)
@@ -90,12 +90,13 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     }
 
     $curl         = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $targetHeaders);
-    $targetTimes  = $curl->GetAllHarvest('time_entries', $query);
+    $targetTimes  = $curl->GetAllLinkedByEntity('time_entries', $query);
 
     // 3. build a look-up table for comparison
     $lookupTimes  = array();
     $newFromDate  = $fromDate;
 
+    // important: Harvest returns data sorted in reverse chronological order
     foreach ($targetTimes as $targetTime)
     {
         // as soon as we hit a locked entry, we know we've already invoiced to this date
@@ -137,7 +138,7 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     }
 
     $curl         = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $sourceHeaders);
-    $sourceTimes  = $curl->GetAllHarvest('time_entries', $query);
+    $sourceTimes  = $curl->GetAllLinkedByEntity('time_entries', $query);
 
     // 5. compare results and build table of entries to add to target
     $newTimes = array();
@@ -192,4 +193,3 @@ foreach ($HARVEST_SYNC_RELATIONSHIPS as $syncData)
     }
 }
 
-?>

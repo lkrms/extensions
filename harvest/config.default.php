@@ -33,7 +33,8 @@ $HARVEST_INVOICES = array(
             'weekOfMonth' => null,          // e.g. for last Friday of the month, use -1 here and 5 for dayOfWeek
             'exactDate'   => null,          // an array of dates that can be reliably parsed by strtotime (yyyy-mm-dd recommended)
         ),
-        'includeUnbillable' => true,
+        'fetchUnbillable'   => true,        // retrieve unbillable time entries? (for daily email, or to add to invoices)
+        'includeUnbillable' => true,        // display unbillable line items on invoices (if fetched)?
         'invoiceMinimum'    => 0,           // invoices will not be raised until they exceed this value
         'daysToPay'         => 7,
         'sendEmail'         => true,

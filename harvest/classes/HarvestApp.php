@@ -155,8 +155,9 @@ class HarvestApp
 
         foreach ($invoiceSettings as $accountName => $invData)
         {
-            $account  = HarvestCredentials::FromName($accountName);
-            $headers  = $account->GetHeaders();
+            $account          = HarvestCredentials::FromName($accountName);
+            $headers          = $account->GetHeaders();
+            $fetchUnbillable  = isset($invData['fetchUnbillable']) ? $invData['fetchUnbillable'] : true;
 
             // Harvest doesn't allow us to mark time entries as billed via the API, so we have to keep track ourselves
             HarvestApp::LoadDataFile($account->GetAccountId(), $dataFile);
@@ -169,7 +170,7 @@ class HarvestApp
             );
 
             $curl   = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $headers);
-            $times  = $curl->GetAllHarvest('time_entries', $query);
+            $times  = $curl->GetAllLinkedByEntity('time_entries', $query);
 
             // 2. collate them by client
             $clientTimes          = array();
@@ -180,6 +181,11 @@ class HarvestApp
 
             foreach ($times as $time)
             {
+                if ( ! $fetchUnbillable && ! $time['billable'])
+                {
+                    continue;
+                }
+
                 $clientId   = $time['client']['id'];
                 $projectId  = $time['project']['id'];
 
@@ -292,6 +298,8 @@ class HarvestApp
                     }
                 }
 
+                $skipMessage = "Skipping $prettyTotal ($totalHours hours" . ($fetchUnbillable ? ", $totalBillableHours billable" : '') . ") for $clientName";
+
                 // do we invoice this client today?
                 foreach ($invoiceOn as $filter => $value)
                 {
@@ -313,7 +321,7 @@ class HarvestApp
 
                             if ( ! in_array(date('w', $today) + 0, $value))
                             {
-                                HarvestApp::Log("Skipping $prettyTotal ($totalHours hours, $totalBillableHours billable) for $clientName (not due to be invoiced today - wrong dayOfWeek, expecting " . implode(',', $value) . ")");
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong dayOfWeek, expecting " . implode(',', $value) . ")");
                                 $unbilledTotal += $total;
 
                                 continue 3;
@@ -326,7 +334,7 @@ class HarvestApp
                             // negative numbers are counted from the end of the month
                             if ( ! in_array(date('j', $today) + 0, $value) && ! in_array( - (date('t', $today) - date('j', $today) + 1), $value))
                             {
-                                HarvestApp::Log("Skipping $prettyTotal ($totalHours hours, $totalBillableHours billable) for $clientName (not due to be invoiced today - wrong dayOfMonth, expecting " . implode(',', $value) . ")");
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong dayOfMonth, expecting " . implode(',', $value) . ")");
                                 $unbilledTotal += $total;
 
                                 continue 3;
@@ -338,7 +346,7 @@ class HarvestApp
 
                             if ( ! in_array(ceil(date('j', $today) / 7), $value) && ! in_array( - ceil((date('t', $today) - date('j', $today) + 1) / 7), $value))
                             {
-                                HarvestApp::Log("Skipping $prettyTotal ($totalHours hours, $totalBillableHours billable) for $clientName (not due to be invoiced today - wrong weekOfMonth, expecting " . implode(',', $value) . ")");
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong weekOfMonth, expecting " . implode(',', $value) . ")");
                                 $unbilledTotal += $total;
 
                                 continue 3;
@@ -362,7 +370,7 @@ class HarvestApp
 
                             if ( ! $isToday)
                             {
-                                HarvestApp::Log("Skipping $prettyTotal ($totalHours hours, $totalBillableHours billable) for $clientName (not due to be invoiced today - wrong exactDate)");
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong exactDate)");
                                 $unbilledTotal += $total;
 
                                 continue 3;
@@ -472,7 +480,7 @@ class HarvestApp
                     // skip if this would be a below-minimum invoice
                     if ($batchTotal < $invoiceMinimum || ! $batchTotal)
                     {
-                        HarvestApp::Log("Skipping batch ($batchTotalHours hours, $batchTotalBillableHours billable) for $clientName (minimum invoice value not reached)");
+                        HarvestApp::Log("Skipping batch ($batchTotalHours hours" . ($fetchUnbillable ? ", $batchTotalBillableHours billable" : '') . ") for $clientName (minimum invoice value not reached)");
 
                         continue;
                     }
@@ -506,7 +514,7 @@ class HarvestApp
                     );
 
                     $invoicedTotal += $invoice['amount'];
-                    HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - $batchTotalHours hours, $batchTotalBillableHours billable)");
+                    HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - $batchTotalHours hours" . ($fetchUnbillable ? ", $batchTotalBillableHours billable" : '') . ")");
 
                     foreach ($markAsBilled as $t)
                     {
@@ -519,7 +527,7 @@ class HarvestApp
                     if ($sendEmail)
                     {
                         $curl      = new Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
-                        $contacts  = $curl->GetAllHarvest('contacts', array(
+                        $contacts  = $curl->GetAllLinkedByEntity('contacts', array(
                             'client_id' => $clientId
                         ));
                         $allowedContacts = null;
@@ -759,7 +767,7 @@ class HarvestApp
                 if ($sendEmail)
                 {
                     $curl      = new Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
-                    $contacts  = $curl->GetAllHarvest('contacts', array(
+                    $contacts  = $curl->GetAllLinkedByEntity('contacts', array(
                         'client_id' => $clientId
                     ));
                     $allowedContacts = null;
