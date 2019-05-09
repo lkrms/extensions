@@ -1,3 +1,4 @@
-data/*.json
-log/*.log
-config.php
+/data/*.json
+/log/*.log
+/log/*.log.*.gz
+/config.php
