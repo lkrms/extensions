@@ -6,6 +6,8 @@ class HarvestApp
 
     private static $CurrentLog = '';
 
+    private static $ExistingInvoices;
+
     public static function Autoload($className)
     {
         // don't attempt to autoload namespaced classes
@@ -127,6 +129,29 @@ class HarvestApp
         }
 
         return $template;
+    }
+
+    public static function GetInvoiceId($number, $today, $headers)
+    {
+        if (is_null(self::$ExistingInvoices))
+        {
+            $query = array(
+                'from' => date('Y-m-d', $today),
+            );
+
+            $curl                    = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
+            self::$ExistingInvoices  = $curl->GetAllLinkedByEntity('invoices', $query);
+        }
+
+        foreach (self::$ExistingInvoices as $invoice)
+        {
+            if (strcasecmp(trim($invoice['number']), $number) === 0)
+            {
+                return $invoice['id'];
+            }
+        }
+
+        return null;
     }
 
     public static function RaiseInvoices( array $invoiceSettings, array $recurringInvoiceSettings, $today = null)
@@ -487,10 +512,15 @@ class HarvestApp
 
                     ksort($lineItems);
 
+                    while ( ! is_null(self::GetInvoiceId($number = 'H-' . date('ymd', $today) . sprintf('%02d', $i), $today, $headers)))
+                    {
+                        $i++;
+                    }
+
                     // assemble invoice data for Harvest
                     $data = array(
                         'client_id'  => $clientId,
-                        'number'     => 'H-' . date('ymd', $today) . sprintf('%02d', $i),
+                        'number'     => $number,
                         'notes'      => $invData['notes'],
                         'issue_date' => date('Y-m-d'),
                         'due_date'   => date('Y-m-d', time() + ($daysToPay * 24 * 60 * 60)),
@@ -738,10 +768,15 @@ class HarvestApp
                     continue;
                 }
 
+                while ( ! is_null(self::GetInvoiceId($number = 'H-' . date('ymd', $today) . sprintf('%02d', $i), $today, $headers)))
+                {
+                    $i++;
+                }
+
                 // assemble invoice data for Harvest
                 $data = array(
                     'client_id'  => $clientId,
-                    'number'     => 'H-' . date('ymd', $today) . sprintf('%02d', $i),
+                    'number'     => $number,
                     'notes'      => $invData['notes'],
                     'issue_date' => date('Y-m-d'),
                     'due_date'   => date('Y-m-d', time() + ($daysToPay * 24 * 60 * 60)),
