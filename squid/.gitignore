@@ -3,4 +3,4 @@ auth_negotiate_macs
 other_macs
 config.php
 pac.*.js
--*.default.*
+!*.default.*
