@@ -107,6 +107,11 @@ class HarvestApp
             {
                 $dataFile['billedTimes'] = array();
             }
+
+            if ( ! isset($dataFile['billedExpenses']))
+            {
+                $dataFile['billedExpenses'] = array();
+            }
         }
     }
 
@@ -199,8 +204,10 @@ class HarvestApp
 
             // 2. collate them by client
             $clientTimes          = array();
+            $clientExpenses       = array();
             $clientProjects       = array();
             $clientTotals         = array();
+            $clientExpenseTotals  = array();
             $clientHours          = array();
             $clientBillableHours  = array();
 
@@ -222,8 +229,10 @@ class HarvestApp
                 if ( ! isset($clientTimes[$clientId]))
                 {
                     $clientTimes[$clientId]          = array();
+                    $clientExpenses[$clientId]       = array();
                     $clientProjects[$clientId]       = array();
                     $clientTotals[$clientId]         = 0;
+                    $clientExpenseTotals[$clientId]  = 0;
                     $clientHours[$clientId]          = 0;
                     $clientBillableHours[$clientId]  = 0;
                 }
@@ -246,14 +255,63 @@ class HarvestApp
                 }
             }
 
-            // 3. iterate through each client
+            // 3. retrieve all uninvoiced expenses
+            $query = array(
+                'is_billed' => 'false',
+                'to'        => $yesterdayYmd,
+            );
+
+            $curl      = new Curler(HARVEST_API_ROOT . '/v2/expenses', $headers);
+            $expenses  = $curl->GetAllLinkedByEntity('expenses', $query);
+
+            // 4. collate them by client
+            foreach ($expenses as $expense)
+            {
+                if ( ! $fetchUnbillable && ! $expense['billable'])
+                {
+                    continue;
+                }
+
+                $clientId   = $expense['client']['id'];
+                $projectId  = $expense['project']['id'];
+
+                if (in_array($clientId, $invData['excludeClients']) || in_array($expense['id'], $dataFile['billedExpenses']))
+                {
+                    continue;
+                }
+
+                if ( ! isset($clientTimes[$clientId]))
+                {
+                    $clientTimes[$clientId]          = array();
+                    $clientExpenses[$clientId]       = array();
+                    $clientProjects[$clientId]       = array();
+                    $clientTotals[$clientId]         = 0;
+                    $clientExpenseTotals[$clientId]  = 0;
+                    $clientHours[$clientId]          = 0;
+                    $clientBillableHours[$clientId]  = 0;
+                }
+
+                $clientExpenses[$clientId][] = $expense;
+
+                if ( ! in_array($projectId, $clientProjects[$clientId]))
+                {
+                    $clientProjects[$clientId][] = $projectId;
+                }
+
+                $clientExpenseTotals[$clientId] += $expense['total_cost'];
+            }
+
+            // 5. iterate through each client
             foreach ($clientTimes as $clientId => $invoiceTimes)
             {
-                $clientName          = $invoiceTimes[0]['client']['name'];
-                $total               = $clientTotals[$clientId];
-                $totalHours          = $clientHours[$clientId];
-                $totalBillableHours  = $clientBillableHours[$clientId];
-                $prettyTotal         = HarvestApp::FormatCurrency($total);
+                $invoiceExpenses      = $clientExpenses[$clientId];
+                $clientName           = isset($invoiceTimes[0]['client']['name']) ? $invoiceTimes[0]['client']['name'] : $invoiceExpenses[0]['client']['name'];
+                $expensesTotal        = $clientExpenseTotals[$clientId];
+                $total                = $clientTotals[$clientId] + $expensesTotal;
+                $totalHours           = $clientHours[$clientId];
+                $totalBillableHours   = $clientBillableHours[$clientId];
+                $prettyTotal          = HarvestApp::FormatCurrency($total);
+                $prettyExpensesTotal  = HarvestApp::FormatCurrency($expensesTotal);
 
                 // these settings are overridable per-client
                 $showData           = $invData['showData'];
@@ -323,7 +381,7 @@ class HarvestApp
                     }
                 }
 
-                $skipMessage = "Skipping $prettyTotal ($totalHours hours" . ($fetchUnbillable ? ", $totalBillableHours billable" : '') . ") for $clientName";
+                $skipMessage = "Skipping $prettyTotal ($totalHours hours" . ($fetchUnbillable ? ", $totalBillableHours billable" : '') . "; $prettyExpensesTotal expenses) for $clientName";
 
                 // do we invoice this client today?
                 foreach ($invoiceOn as $filter => $value)
@@ -413,10 +471,12 @@ class HarvestApp
                 foreach ($invoiceBatches as $batch)
                 {
                     $batchTotal               = 0;
+                    $batchExpensesTotal       = 0;
                     $batchTotalHours          = 0;
                     $batchTotalBillableHours  = 0;
                     $lineItems                = array();
                     $markAsBilled             = array();
+                    $markExpensesAsBilled     = array();
 
                     foreach ($invoiceTimes as $t)
                     {
@@ -488,7 +548,7 @@ class HarvestApp
                             $show .= ($show ? "\n" : '') . $t['notes'];
                         }
 
-                        $sortKey = date('YmdHis', strtotime("{$t['spent_date']} {$t['started_time']}")) . '-' . $t['id'];
+                        $sortKey = date('YmdHis', strtotime("{$t['spent_date']} {$t['started_time']}")) . '-t-' . $t['id'];
 
                         // attempt to store with a meaningfully sortable key
                         $lineItems[$sortKey] = array(
@@ -502,10 +562,86 @@ class HarvestApp
                         $markAsBilled[] = $t;
                     }
 
+                    foreach ($invoiceExpenses as $e)
+                    {
+                        // skip this entry if it doesn't relate to a project we're invoicing for
+                        if ( ! in_array($e['project']['id'], $batch))
+                        {
+                            continue;
+                        }
+
+                        if ( ! $includeUnbillable && ! $e['billable'])
+                        {
+                            continue;
+                        }
+
+                        // keep running totals
+                        $batchTotal         += $e['total_cost'];
+                        $batchExpensesTotal += $e['total_cost'];
+
+                        // generate pretty line item descriptions
+                        $show       = array();
+                        $finalShow  = array();
+
+                        if (in_array('date', $showData))
+                        {
+                            $show[] = date($invData['dateFormat'], strtotime($e['spent_date']));
+                        }
+
+                        if ($show)
+                        {
+                            $finalShow[]  = '[' . implode(' ', $show) . ']';
+                            $show         = array();
+                        }
+
+                        if (in_array('project', $showData))
+                        {
+                            $show[] = $e['project']['name'];
+                        }
+
+                        if (in_array('task', $showData))
+                        {
+                            $show[] = $e['expense_category']['name'];
+                        }
+
+                        if ($show)
+                        {
+                            $finalShow[] = implode(' - ', $show);
+                        }
+
+                        if (in_array('people', $showData))
+                        {
+                            $finalShow[] = "({$e['user']['name']})";
+                        }
+
+                        $show = '';
+
+                        if ($finalShow)
+                        {
+                            $show = implode(' ', $finalShow);
+                        }
+
+                        if (in_array('notes', $showData) && $e['notes'])
+                        {
+                            $show .= ($show ? "\n" : '') . $e['notes'];
+                        }
+
+                        $sortKey              = date('YmdHis', strtotime("{$e['spent_date']} 00:00:00")) . '-e-' . $e['id'];
+                        $lineItems[$sortKey]  = array(
+                            'project_id'  => $e['project']['id'],
+                            'kind'        => $invData['expenseItemKind'],
+                            'description' => $show,
+                            'quantity'    => 1,
+                            'unit_price'  => $e['total_cost'],
+                        );
+
+                        $markExpensesAsBilled[] = $e;
+                    }
+
                     // skip if this would be a below-minimum invoice
                     if ($batchTotal < $invoiceMinimum || ! $batchTotal)
                     {
-                        HarvestApp::Log("Skipping batch ($batchTotalHours hours" . ($fetchUnbillable ? ", $batchTotalBillableHours billable" : '') . ") for $clientName (minimum invoice value not reached)");
+                        HarvestApp::Log("Skipping batch ($batchTotalHours hours" . ($fetchUnbillable ? ", $batchTotalBillableHours billable" : '') . "; $batchExpensesTotal expenses) for $clientName (minimum invoice value not reached)");
 
                         continue;
                     }
@@ -544,11 +680,16 @@ class HarvestApp
                     );
 
                     $invoicedTotal += $invoice['amount'];
-                    HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - $batchTotalHours hours" . ($fetchUnbillable ? ", $batchTotalBillableHours billable" : '') . ")");
+                    HarvestApp::Log("Invoice {$invoiceData['number']} created for $clientName with id {$invoiceData['id']} ({$invoiceData['amount']} - $batchTotalHours hours" . ($fetchUnbillable ? ", $batchTotalBillableHours billable" : '') . "; $batchExpensesTotal expenses)");
 
                     foreach ($markAsBilled as $t)
                     {
                         $dataFile['billedTimes'][] = $t['id'];
+                    }
+
+                    foreach ($markExpensesAsBilled as $e)
+                    {
+                        $dataFile['billedExpenses'][] = $e['id'];
                     }
 
                     // save after every invoice

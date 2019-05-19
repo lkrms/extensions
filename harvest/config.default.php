@@ -40,6 +40,7 @@ $HARVEST_INVOICES = array(
         'sendEmail'         => true,
         'dateFormat'        => 'd/m/Y',
         'itemKind'          => 'Service',   // must match the name of a service item type under Invoices > Configure > Item Types in Harvest
+        'expenseItemKind'   => 'Product',
         'notes'             => "We accept payment by direct deposit, cheque, VISA, or MasterCard.\n\nIf paying by direct deposit or cheque, please provide your invoice number with your payment.",
         'emailSubject'      => "Invoice [[number]] from [[companyName]] for [[clientName]]",
         'emailBody'         => "Hi [[clientName]],\r\n\r\nHere's invoice [[number]] for [[amount]].\r\n\r\nThe amount outstanding of [[dueAmount]] is due on [[dueDate]].\r\n\r\nThe detailed invoice is attached as a PDF.\r\n\r\nIf you have any questions, please let us know.\r\n\r\nThanks,\r\n[[companyName]]",
