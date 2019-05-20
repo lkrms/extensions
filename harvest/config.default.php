@@ -84,6 +84,24 @@ $HARVEST_RECURRING_INVOICES = array(
     ),
 );
 
+// indexed by name (must match an index in $HARVEST_ACCOUNTS)
+$HARVEST_CONTRACTOR_REMINDERS = array(
+    'harvest1' => array(
+        'remindOn' => array(                    // all non-null entries must match for reminder to be sent
+            'dayOfWeek'   => 1,                 // 0-6, Sunday-Saturday
+            'weekNumber'  => range(1, 51, 2),   // an array of week numbers
+            'dayOfMonth'  => null,              // negative numbers are measured from end of month
+            'weekOfMonth' => null,              // e.g. for last Friday of the month, use -1 here and 5 for dayOfWeek
+            'exactDate'   => null,              // an array of dates that can be reliably parsed by strtotime (yyyy-mm-dd recommended)
+        ),
+        'remindRange' => array(                 // parsed by strtotime relative to run date (MUST NOT RESULT IN OVERLAPPING DATES)
+            'start' => '-2 weeks -2 days',
+            'end'   => '-3 days',
+        ),
+        'dateFormat' => 'D j/n/y',
+    ),
+);
+
 // one or more source/target sets
 $HARVEST_SYNC_RELATIONSHIPS = array(
     array(

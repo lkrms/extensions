@@ -1046,5 +1046,156 @@ class HarvestApp
             mail(HARVEST_REPORT_EMAIL, 'Harvest invoicing report for ' . date('j M', $today), self::GetCurrentLog(), 'From: ' . HARVEST_REPORT_FROM_EMAIL);
         }
     }
+
+    public static function SendContractorReminders( array $reminderSettings, $today = null)
+    {
+        if (is_null($today))
+        {
+            $today = time();
+        }
+
+        foreach ($reminderSettings as $accountName => $reminderData)
+        {
+            $account  = HarvestCredentials::FromName($accountName);
+            $headers  = $account->GetHeaders();
+
+            // is this reminder due today?
+            foreach ($reminderData['remindOn'] as $filter => $value)
+            {
+                if (is_null($value))
+                {
+                    continue;
+                }
+
+                if ( ! is_array($value))
+                {
+                    $value = array(
+                        $value
+                    );
+                }
+
+                switch ($filter)
+                {
+                    case 'dayOfWeek':
+
+                        if ( ! in_array(date('w', $today) + 0, $value))
+                        {
+                            continue 3;
+                        }
+
+                        break;
+
+                    case 'weekNumber':
+
+                        if ( ! in_array(date('W', $today) + 0, $value))
+                        {
+                            continue 3;
+                        }
+
+                        break;
+
+                    case 'dayOfMonth':
+
+                        // negative numbers are counted from the end of the month
+                        if ( ! in_array(date('j', $today) + 0, $value) && ! in_array( - (date('t', $today) - date('j', $today) + 1), $value))
+                        {
+                            continue 3;
+                        }
+
+                        break;
+
+                    case 'weekOfMonth':
+
+                        if ( ! in_array(ceil(date('j', $today) / 7), $value) && ! in_array( - ceil((date('t', $today) - date('j', $today) + 1) / 7), $value))
+                        {
+                            continue 3;
+                        }
+
+                        break;
+
+                    case 'exactDate':
+
+                        $isToday = false;
+
+                        foreach ($value as $exactDate)
+                        {
+                            if (date('Y-m-d', strtotime($exactDate)) == date('Y-m-d', $today))
+                            {
+                                $isToday = true;
+
+                                break;
+                            }
+                        }
+
+                        if ( ! $isToday)
+                        {
+                            continue 3;
+                        }
+
+                        break;
+
+                    default:
+
+                        throw new Exception("Unknown 'invoiceOn' entry '$filter'");
+                }
+            }
+
+            // yes, it is!
+            $start     = strtotime($reminderData['remindRange']['start'], $today);
+            $end       = strtotime($reminderData['remindRange']['end'], $today);
+            $startYmd  = date('Y-m-d', $start);
+            $endYmd    = date('Y-m-d', $end);
+
+            // first, identify our contractors
+            $query = array(
+                'is_active' => 'true',
+            );
+
+            $curl         = new Curler(HARVEST_API_ROOT . '/v2/users', $headers);
+            $users        = $curl->GetAllLinkedByEntity('users', $query);
+            $contractors  = array_filter($users,
+
+            function ($u)
+            {
+                return $u['is_contractor'];
+            }
+
+            );
+
+            // then, gather their timesheets
+            foreach ($contractors as $contractor)
+            {
+                $hours  = 0;
+                $query  = array(
+                    'user_id'    => $contractor['id'],
+                    'is_running' => 'false',
+                    'from'       => $startYmd,
+                    'to'         => $endYmd,
+                );
+
+                $curl   = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $headers);
+                $times  = $curl->GetAllLinkedByEntity('time_entries', $query);
+
+                foreach ($times as $time)
+                {
+                    $hours += $time['hours'];
+                }
+
+                if ($hours)
+                {
+                    $message = "Hi $contractor[first_name]
+
+Between " . date($reminderData['dateFormat'], $start) . " and " . date($reminderData['dateFormat'], $end) . ", your billable hours were: $hours
+
+Please send an invoice for: " . HarvestApp::FormatCurrency($contractor['cost_rate'] * $hours) . "
+
+Thank you
+
+";
+                    mail("$contractor[first_name] $contractor[last_name] <$contractor[email]>", 'Hours to invoice for ' . date('j M', $start) . ' to ' . date('j M', $end), $message, 'From: ' . HARVEST_REPORT_FROM_EMAIL . "\r\nCc: " . HARVEST_REPORT_EMAIL);
+                }
+            }
+        }
+    }
 }
 
