@@ -29,6 +29,7 @@ $HARVEST_INVOICES = array(
         ),
         'invoiceOn' => array(               // all non-null entries must match for invoice to be raised
             'dayOfWeek'   => 5,             // 0-6, Sunday-Saturday
+            'weekNumber'  => null,          // an array of week numbers
             'dayOfMonth'  => null,          // negative numbers are measured from end of month
             'weekOfMonth' => null,          // e.g. for last Friday of the month, use -1 here and 5 for dayOfWeek
             'exactDate'   => null,          // an array of dates that can be reliably parsed by strtotime (yyyy-mm-dd recommended)
@@ -69,6 +70,7 @@ $HARVEST_RECURRING_INVOICES = array(
         ),
         'invoiceOn' => array(           // all non-null entries must match for invoice to be raised
             'dayOfWeek'   => 3,         // 0-6, Sunday-Saturday
+            'weekNumber'  => null,      // an array of week numbers
             'dayOfMonth'  => null,      // negative numbers are measured from end of month
             'weekOfMonth' => -2,        // e.g. for last Friday of the month, use -1 here and 5 for dayOfWeek
             'exactDate'   => null,      // an array of dates that can be reliably parsed by strtotime (yyyy-mm-dd recommended)

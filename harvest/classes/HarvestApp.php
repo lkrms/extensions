@@ -412,6 +412,18 @@ class HarvestApp
 
                             break;
 
+                        case 'weekNumber':
+
+                            if ( ! in_array(date('W', $today) + 0, $value))
+                            {
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong weekNumber)");
+                                $unbilledTotal += $total;
+
+                                continue 3;
+                            }
+
+                            break;
+
                         case 'dayOfMonth':
 
                             // negative numbers are counted from the end of the month
@@ -814,6 +826,17 @@ class HarvestApp
                             if ( ! in_array(date('w', $today) + 0, $value))
                             {
                                 HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong dayOfWeek, expecting " . implode(',', $value) . ")");
+
+                                continue 3;
+                            }
+
+                            break;
+
+                        case 'weekNumber':
+
+                            if ( ! in_array(date('W', $today) + 0, $value))
+                            {
+                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong weekNumber)");
 
                                 continue 3;
                             }
