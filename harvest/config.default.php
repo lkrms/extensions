@@ -44,7 +44,7 @@ $HARVEST_INVOICES = array(
         'expenseItemKind'   => 'Product',
         'notes'             => "We accept payment by direct deposit, cheque, VISA, or MasterCard.\n\nIf paying by direct deposit or cheque, please provide your invoice number with your payment.",
         'emailSubject'      => "Invoice [[number]] from [[companyName]] for [[clientName]]",
-        'emailBody'         => "Hi [[clientName]],\r\n\r\nHere's invoice [[number]] for [[amount]].\r\n\r\nThe amount outstanding of [[dueAmount]] is due on [[dueDate]].\r\n\r\nThe detailed invoice is attached as a PDF.\r\n\r\nIf you have any questions, please let us know.\r\n\r\nThanks,\r\n[[companyName]]",
+        'emailBody'         => "Hi [[clientName]]\r\n\r\nHere's invoice [[number]] for [[amount]].\r\n\r\nThe amount outstanding of [[dueAmount]] is due on [[dueDate]].\r\n\r\nThe detailed invoice is attached as a PDF.\r\n\r\nIf you have any questions, please let us know.\r\n\r\nThank you\r\n\r\n[[companyName]]",
     ),
 );
 
@@ -80,7 +80,7 @@ $HARVEST_RECURRING_INVOICES = array(
         'dateFormat'   => 'd/m/Y',
         'notes'        => "We accept payment by direct deposit, cheque, VISA, or MasterCard.\n\nIf paying by direct deposit or cheque, please provide your invoice number with your payment.",
         'emailSubject' => "Invoice [[number]] from [[companyName]] for [[clientName]]",
-        'emailBody'    => "Hi [[clientName]],\r\n\r\nHere's invoice [[number]] for [[amount]].\r\n\r\nThe amount outstanding of [[dueAmount]] is due on [[dueDate]].\r\n\r\nThe detailed invoice is attached as a PDF.\r\n\r\nIf you have any questions, please let us know.\r\n\r\nThanks,\r\n[[companyName]]",
+        'emailBody'    => "Hi [[clientName]]\r\n\r\nHere's invoice [[number]] for [[amount]].\r\n\r\nThe amount outstanding of [[dueAmount]] is due on [[dueDate]].\r\n\r\nThe detailed invoice is attached as a PDF.\r\n\r\nIf you have any questions, please let us know.\r\n\r\nThank you\r\n\r\n[[companyName]]",
     ),
 );
 
@@ -98,7 +98,9 @@ $HARVEST_CONTRACTOR_REMINDERS = array(
             'start' => '-2 weeks -2 days',
             'end'   => '-3 days',
         ),
-        'dateFormat' => 'D j/n/y',
+        'dateFormat'   => 'D j/n/y',
+        'emailSubject' => "[[companyName]] hours for [[startDate_short]] to [[endDate_short]]",
+        'emailBody'    => "Hi [[contractorFirstName]]\r\n\t\r\nBetween [[startDate]] and [[endDate]] (a period of [[days]] days), your billable hours were: [[billableHours]]\r\n\t\r\nPlease send an invoice for: [[invoiceTotal]]\r\n\t\r\nThank you\r\n\t\r\n[[companyName]]",
     ),
 );
 
@@ -121,6 +123,6 @@ $HARVEST_SYNC_RELATIONSHIPS = array(
 
 define('HARVEST_REPORT_FROM_EMAIL', 'Automation Services <automagical@mydomain.com>');
 define('HARVEST_REPORT_EMAIL', 'accounts@mydomain.com');
+define('HARVEST_LOCALE', 'en_AU');
 define('HARVEST_TIMEZONE', 'Australia/Sydney');
-
-?>
+define('HARVEST_DEFAULT_CURRENCY', 'AUD');

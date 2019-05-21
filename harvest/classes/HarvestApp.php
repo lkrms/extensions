@@ -8,6 +8,21 @@ class HarvestApp
 
     private static $ExistingInvoices;
 
+    /**
+     * @var string
+     */
+    private static $DefaultAccount;
+
+    /**
+     * @var HarvestCredentials
+     */
+    private static $DefaultAccountCredentials;
+
+    /**
+     * @var array
+     */
+    private static $DefaultCompany;
+
     public static function Autoload($className)
     {
         // don't attempt to autoload namespaced classes
@@ -121,9 +136,56 @@ class HarvestApp
         file_put_contents($dataFilePath, json_encode($dataFile));
     }
 
-    public static function FormatCurrency($value)
+    /**
+     * @return string
+     */
+    public static function GetDefaultAccount()
     {
-        return number_format($value, 2);
+        global $HARVEST_ACCOUNTS;
+
+        if (is_null(self::$DefaultAccount))
+        {
+            if (empty($HARVEST_ACCOUNTS))
+            {
+                throw new Exception('No Harvest accounts defined');
+            }
+
+            self::$DefaultAccount = array_keys($HARVEST_ACCOUNTS)[0];
+        }
+
+        return self::$DefaultAccount;
+    }
+
+    /**
+     * @return HarvestCredentials
+     */
+    public static function GetDefaultAccountCredentials()
+    {
+        if (is_null(self::$DefaultAccountCredentials))
+        {
+            self::$DefaultAccountCredentials = HarvestCredentials::FromName(self::GetDefaultAccount());
+        }
+
+        return self::$DefaultAccountCredentials;
+    }
+
+    public static function GetDefaultCompany()
+    {
+        if (is_null(self::$DefaultCompany))
+        {
+            $headers  = self::GetDefaultAccountCredentials()->GetHeaders();
+            $curl     = new Curler(HARVEST_API_ROOT . '/v2/company', $headers);
+
+            // fetch all of our particulars
+            self::$DefaultCompany = $curl->GetJson();
+        }
+
+        return self::$DefaultCompany;
+    }
+
+    public static function FormatCurrency($value, $currency = HARVEST_DEFAULT_CURRENCY)
+    {
+        return ( new NumberFormatter(HARVEST_LOCALE, NumberFormatter::CURRENCY))->formatCurrency($value, $currency);
     }
 
     public static function FillTemplate($template, array $values)
@@ -683,8 +745,8 @@ class HarvestApp
                     $invoiceData = array(
                         'id'          => $invoice['id'],
                         'number'      => $invoice['number'],
-                        'amount'      => HarvestApp::FormatCurrency($invoice['amount']) . ' ' . $invoice['currency'],
-                        'dueAmount'   => HarvestApp::FormatCurrency($invoice['due_amount']) . ' ' . $invoice['currency'],
+                        'amount'      => HarvestApp::FormatCurrency($invoice['amount'], $invoice['currency']),
+                        'dueAmount'   => HarvestApp::FormatCurrency($invoice['due_amount'], $invoice['currency']),
                         'issueDate'   => date($invData['dateFormat'], strtotime($invoice['issue_date'])),
                         'dueDate'     => date($invData['dateFormat'], strtotime($invoice['due_date'])),
                         'companyName' => $account->CompanyName,
@@ -955,8 +1017,8 @@ class HarvestApp
                 $invoiceData = array_merge($invoiceData, array(
                     'id'        => $invoice['id'],
                     'number'    => $invoice['number'],
-                    'amount'    => HarvestApp::FormatCurrency($invoice['amount']) . ' ' . $invoice['currency'],
-                    'dueAmount' => HarvestApp::FormatCurrency($invoice['due_amount']) . ' ' . $invoice['currency'],
+                    'amount'    => HarvestApp::FormatCurrency($invoice['amount'], $invoice['currency']),
+                    'dueAmount' => HarvestApp::FormatCurrency($invoice['due_amount'], $invoice['currency']),
                     'issueDate' => date($invData['dateFormat'], strtotime($invoice['issue_date'])),
                     'dueDate'   => date($invData['dateFormat'], strtotime($invoice['due_date'])),
                 ));
@@ -1183,16 +1245,22 @@ class HarvestApp
 
                 if ($hours)
                 {
-                    $message = "Hi $contractor[first_name]
+                    $data = [
+                        'contractorFirstName' => $contractor['first_name'],
+                        'contractorLastName'  => $contractor['last_name'],
+                        'companyName'         => $account->CompanyName,
+                        'startDate'           => date($reminderData['dateFormat'], $start),
+                        'endDate'             => date($reminderData['dateFormat'], $end),
+                        'startDate_short'     => date('j M', $start),
+                        'endDate_short'       => date('j M', $end),
+                        'days'                => round(($end - $start) / (60 * 60 * 24)) + 1,    // rounded to allow for DST
+                        'billableHours'       => $hours,
+                        'invoiceTotal'        => HarvestApp::FormatCurrency($contractor['cost_rate'] * $hours),
+                    ];
 
-Between " . date($reminderData['dateFormat'], $start) . " and " . date($reminderData['dateFormat'], $end) . ", your billable hours were: $hours
-
-Please send an invoice for: " . HarvestApp::FormatCurrency($contractor['cost_rate'] * $hours) . "
-
-Thank you
-
-";
-                    mail("$contractor[first_name] $contractor[last_name] <$contractor[email]>", 'Hours to invoice for ' . date('j M', $start) . ' to ' . date('j M', $end), $message, 'From: ' . HARVEST_REPORT_FROM_EMAIL . "\r\nCc: " . HARVEST_REPORT_EMAIL);
+                    $subject  = self::FillTemplate($reminderData['emailSubject'], $data);
+                    $message  = self::FillTemplate($reminderData['emailBody'], $data);
+                    mail("$contractor[first_name] $contractor[last_name] <$contractor[email]>", $subject, $message, 'From: ' . HARVEST_REPORT_FROM_EMAIL . "\r\nCc: " . HARVEST_REPORT_EMAIL);
                 }
             }
         }
