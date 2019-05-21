@@ -733,9 +733,22 @@ class HarvestApp
                         'number'     => $number,
                         'notes'      => $invData['notes'],
                         'issue_date' => date('Y-m-d'),
-                        'due_date'   => date('Y-m-d', time() + ($daysToPay * 24 * 60 * 60)),
                         'line_items' => array_values($lineItems),
                     );
+
+                    if (in_array($daysToPay, [
+                        15,
+                        30,
+                        45,
+                        60,
+                    ]))
+                    {
+                        $data['payment_term'] = "net $daysToPay";
+                    }
+                    else
+                    {
+                        $data['due_date'] = date('Y-m-d', time() + ($daysToPay * 24 * 60 * 60));
+                    }
 
                     // create a new invoice
                     $curl     = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
@@ -1005,9 +1018,22 @@ class HarvestApp
                     'number'     => $number,
                     'notes'      => $invData['notes'],
                     'issue_date' => date('Y-m-d'),
-                    'due_date'   => date('Y-m-d', time() + ($daysToPay * 24 * 60 * 60)),
                     'line_items' => $lineItems,
                 );
+
+                if (in_array($daysToPay, [
+                    15,
+                    30,
+                    45,
+                    60,
+                ]))
+                {
+                    $data['payment_term'] = "net $daysToPay";
+                }
+                else
+                {
+                    $data['due_date'] = date('Y-m-d', time() + ($daysToPay * 24 * 60 * 60));
+                }
 
                 // create a new invoice
                 $curl     = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
