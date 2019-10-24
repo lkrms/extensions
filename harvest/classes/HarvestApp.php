@@ -547,6 +547,9 @@ class HarvestApp
 
                 if ( ! $invoiceOnEntries)
                 {
+                    HarvestApp::Log("$skipMessage (will never be invoiced - 'invoiceOn' has no configured entries)");
+                    $unbilledTotal += $total;
+
                     continue;
                 }
 
@@ -888,6 +891,8 @@ class HarvestApp
                     $sendEmail = $recurring['sendEmail'];
                 }
 
+                $skipMessage = "Skipping recurring invoice #$recurringId for $clientName";
+
                 // do we issue this invoice today?
                 $invoiceOnEntries = 0;
 
@@ -913,7 +918,7 @@ class HarvestApp
 
                             if ( ! in_array(date('w', $today) + 0, $value))
                             {
-                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong dayOfWeek, expecting " . implode(',', $value) . ")");
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong dayOfWeek, expecting " . implode(',', $value) . ")");
 
                                 continue 3;
                             }
@@ -924,7 +929,7 @@ class HarvestApp
 
                             if ( ! in_array(date('W', $today) + 0, $value))
                             {
-                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong weekNumber)");
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong weekNumber)");
 
                                 continue 3;
                             }
@@ -936,7 +941,7 @@ class HarvestApp
                             // negative numbers are counted from the end of the month
                             if ( ! in_array(date('j', $today) + 0, $value) && ! in_array( - (date('t', $today) - date('j', $today) + 1), $value))
                             {
-                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong dayOfMonth, expecting " . implode(',', $value) . ")");
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong dayOfMonth, expecting " . implode(',', $value) . ")");
 
                                 continue 3;
                             }
@@ -947,7 +952,7 @@ class HarvestApp
 
                             if ( ! in_array(ceil(date('j', $today) / 7), $value) && ! in_array( - ceil((date('t', $today) - date('j', $today) + 1) / 7), $value))
                             {
-                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong weekOfMonth, expecting " . implode(',', $value) . ")");
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong weekOfMonth, expecting " . implode(',', $value) . ")");
 
                                 continue 3;
                             }
@@ -970,7 +975,7 @@ class HarvestApp
 
                             if ( ! $isToday)
                             {
-                                HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (not due to be invoiced today - wrong exactDate)");
+                                HarvestApp::Log("$skipMessage (not due to be invoiced today - wrong exactDate)");
 
                                 continue 3;
                             }
@@ -985,6 +990,8 @@ class HarvestApp
 
                 if ( ! $invoiceOnEntries)
                 {
+                    HarvestApp::Log("$skipMessage (will never be invoiced - 'invoiceOn' has no configured entries)");
+
                     continue;
                 }
 
@@ -1020,7 +1027,7 @@ class HarvestApp
                 // skip if this would be a zero-value invoice
                 if ( ! $invoiceTotal)
                 {
-                    HarvestApp::Log("Skipping recurring invoice #$recurringId for $clientName (minimum invoice value not reached)");
+                    HarvestApp::Log("$skipMessage (minimum invoice value not reached)");
 
                     continue;
                 }
