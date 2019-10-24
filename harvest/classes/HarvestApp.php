@@ -446,6 +446,11 @@ class HarvestApp
                 $skipMessage = "Skipping $prettyTotal ($totalHours hours" . ($fetchUnbillable ? ", $totalBillableHours billable" : '') . "; $prettyExpensesTotal expenses) for $clientName";
 
                 // do we invoice this client today?
+                if (empty($invoiceOn))
+                {
+                    continue;
+                }
+
                 foreach ($invoiceOn as $filter => $value)
                 {
                     if (is_null($value))
@@ -880,6 +885,11 @@ class HarvestApp
                 }
 
                 // do we issue this invoice today?
+                if (empty($invoiceOn))
+                {
+                    continue;
+                }
+
                 foreach ($invoiceOn as $filter => $value)
                 {
                     if (is_null($value))
