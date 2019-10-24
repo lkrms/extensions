@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 
 // sync.php - designed to run every 5 minutes or so
