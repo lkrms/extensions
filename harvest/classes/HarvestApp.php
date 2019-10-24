@@ -446,10 +446,7 @@ class HarvestApp
                 $skipMessage = "Skipping $prettyTotal ($totalHours hours" . ($fetchUnbillable ? ", $totalBillableHours billable" : '') . "; $prettyExpensesTotal expenses) for $clientName";
 
                 // do we invoice this client today?
-                if (empty($invoiceOn))
-                {
-                    continue;
-                }
+                $invoiceOnEntries = 0;
 
                 foreach ($invoiceOn as $filter => $value)
                 {
@@ -457,6 +454,8 @@ class HarvestApp
                     {
                         continue;
                     }
+
+                    $invoiceOnEntries++;
 
                     if ( ! is_array($value))
                     {
@@ -544,6 +543,11 @@ class HarvestApp
 
                             throw new Exception("Unknown 'invoiceOn' entry '$filter'");
                     }
+                }
+
+                if ( ! $invoiceOnEntries)
+                {
+                    continue;
                 }
 
                 // yes, we do! build it out
@@ -885,10 +889,7 @@ class HarvestApp
                 }
 
                 // do we issue this invoice today?
-                if (empty($invoiceOn))
-                {
-                    continue;
-                }
+                $invoiceOnEntries = 0;
 
                 foreach ($invoiceOn as $filter => $value)
                 {
@@ -896,6 +897,8 @@ class HarvestApp
                     {
                         continue;
                     }
+
+                    $invoiceOnEntries++;
 
                     if ( ! is_array($value))
                     {
@@ -978,6 +981,11 @@ class HarvestApp
 
                             throw new Exception("Unknown 'invoiceOn' entry '$filter'");
                     }
+                }
+
+                if ( ! $invoiceOnEntries)
+                {
+                    continue;
                 }
 
                 // yes, we do! build it out
