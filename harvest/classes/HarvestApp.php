@@ -1156,7 +1156,7 @@ class HarvestApp
 
         if (defined('HARVEST_REPORT_EMAIL'))
         {
-            mail(HARVEST_REPORT_EMAIL, 'Harvest invoicing report for ' . date('j M', $today), self::GetCurrentLog(), 'From: ' . HARVEST_REPORT_FROM_EMAIL . '\nContent-Type: text/plain; charset=utf-8');
+            mail(HARVEST_REPORT_EMAIL, 'Harvest invoicing report for ' . date('j M', $today), self::GetCurrentLog(), 'From: ' . HARVEST_REPORT_FROM_EMAIL . "\r\nContent-Type: text/plain; charset=utf-8");
         }
     }
 
@@ -1311,7 +1311,7 @@ class HarvestApp
 
                     $subject  = self::FillTemplate($reminderData['emailSubject'], $data);
                     $message  = self::FillTemplate($reminderData['emailBody'], $data);
-                    mail("$contractor[first_name] $contractor[last_name] <$contractor[email]>", $subject, $message, 'From: ' . HARVEST_REPORT_FROM_EMAIL . "\r\nCc: " . HARVEST_REPORT_EMAIL . '\nContent-Type: text/plain; charset=utf-8');
+                    mail("$contractor[first_name] $contractor[last_name] <$contractor[email]>", $subject, $message, 'From: ' . HARVEST_REPORT_FROM_EMAIL . "\r\nCc: " . HARVEST_REPORT_EMAIL . "\r\nContent-Type: text/plain; charset=utf-8");
                 }
             }
         }
