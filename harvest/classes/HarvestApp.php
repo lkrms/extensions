@@ -206,7 +206,7 @@ class HarvestApp
         if (is_null(self::$ExistingInvoices))
         {
             $query = array(
-                'from' => date('Y-m-d', $today),
+                'from' => date('Y-m-d', strtotime('-1 month', $today)),
             );
 
             $curl                    = new Curler\Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
@@ -617,7 +617,8 @@ class HarvestApp
 
                         if ($show)
                         {
-                            $finalShow[] = implode(' - ', $show);
+                            $finalShow[]  = implode(' - ', $show);
+                            $show         = array();
                         }
 
                         if (in_array('people', $showData))
@@ -625,22 +626,30 @@ class HarvestApp
                             $finalShow[] = "({$t['user']['name']})";
                         }
 
-                        $show = '';
+                        $groupBy = null;
 
                         if ($finalShow)
                         {
-                            $show = implode(' ', $finalShow);
+                            // `project_id` is needed for each line item whether project is shown or not,
+                            // and we can't group different `billable_rate`s together for obvious reasons,
+                            // so we include them in our 'group by' identifier
+                            $groupBy = implode(',', [
+                                $t['project']['id'],
+                                $t['billable_rate'],
+                                implode(' ', $finalShow)
+                            ]);
                         }
 
                         if (in_array('notes', $showData) && $t['notes'])
                         {
-                            $show .= ($show ? "\n" : '') . $t['notes'];
+                            $show[] = $t['notes'];
                         }
 
                         $sortKey = date('YmdHis', strtotime("{$t['spent_date']} {$t['started_time']}")) . '-t-' . $t['id'];
 
                         // attempt to store with a meaningfully sortable key
                         $lineItems[$sortKey] = array(
+                            'group_by'    => $groupBy,
                             'project_id'  => $t['project']['id'],
                             'kind'        => $invData['itemKind'],
                             'description' => $show,
@@ -695,7 +704,8 @@ class HarvestApp
 
                         if ($show)
                         {
-                            $finalShow[] = implode(' - ', $show);
+                            $finalShow[]  = implode(' - ', $show);
+                            $show         = array();
                         }
 
                         if (in_array('people', $showData))
@@ -703,20 +713,19 @@ class HarvestApp
                             $finalShow[] = "({$e['user']['name']})";
                         }
 
-                        $show = '';
-
                         if ($finalShow)
                         {
-                            $show = implode(' ', $finalShow);
+                            $show[] = implode(' ', $finalShow);
                         }
 
                         if (in_array('notes', $showData) && $e['notes'])
                         {
-                            $show .= ($show ? "\n" : '') . $e['notes'];
+                            $show[] = $e['notes'];
                         }
 
                         $sortKey              = date('YmdHis', strtotime("{$e['spent_date']} 00:00:00")) . '-e-' . $e['id'];
                         $lineItems[$sortKey]  = array(
+                            'group_by'    => null,
                             'project_id'  => $e['project']['id'],
                             'kind'        => $invData['expenseItemKind'],
                             'description' => $show,
@@ -737,6 +746,92 @@ class HarvestApp
 
                     ksort($lineItems);
 
+                    // group line items together
+                    $groupedLineItems  = array();
+                    $groupKeys         = array();
+
+                    foreach ($lineItems as $sortKey => $lineItem)
+                    {
+                        $groupBy = $lineItem['group_by'];
+                        unset($lineItem['group_by']);
+
+                        if ($groupBy)
+                        {
+                            if (isset($groupKeys[$groupBy]))
+                            {
+                                $key                  = $groupKeys[$groupBy];
+                                $item                 = & $groupedLineItems[$key];
+                                $item['quantity']    += $lineItem['quantity'];
+                                $item['description']  = array_merge($item['description'], $lineItem['description']);
+
+                                continue;
+                            }
+                            else
+                            {
+                                $groupKeys[$groupBy] = $sortKey;
+                            }
+                        }
+                        else
+                        {
+                            $lineItem['description'] = implode("\n", $lineItem['description']);
+                        }
+
+                        $groupedLineItems[$sortKey] = $lineItem;
+                    }
+
+                    // reformat grouped descriptions
+                    foreach ($groupKeys as $groupKey => $key)
+                    {
+                        // remove `project_id` and `billable_rate` to get the group's main description
+                        list (, , $firstLine) = explode(',', $groupKey, 3);
+
+                        // combine any `notes` appearing below identical headings
+                        $item  = & $groupedLineItems[$key];
+                        $desc  = array(
+
+                            // for notes that aren't associated with a heading
+                            '' => array()
+                        );
+
+                        foreach ($item['description'] as $d)
+                        {
+                            $da       = preg_split('/\r\n|\r|\n/', $d, - 1, PREG_SPLIT_NO_EMPTY);
+                            $heading  = '';
+
+                            foreach ($da as $dl)
+                            {
+                                $dl = trim($dl);
+
+                                if (preg_match('/^#O[0-9]+: .*/', $dl))
+                                {
+                                    $heading = $dl;
+
+                                    if (isset($desc[$heading]))
+                                    {
+                                        continue;
+                                    }
+
+                                    $desc[$heading] = [];
+                                }
+
+                                $desc[$heading][] = $dl;
+                            }
+                        }
+
+                        foreach ($desc as & $d)
+                        {
+                            $d = implode("\n", array_unique($d));
+                        }
+
+                        if ( ! $desc[''])
+                        {
+                            unset($desc['']);
+                        }
+
+                        array_unshift($desc, $firstLine);
+                        $item['description'] = implode("\n", $desc);
+                    }
+
                     while ( ! is_null(self::GetInvoiceId($number = 'H-' . date('ymd', $today) . sprintf('%02d', $i), $today, $headers)))
                     {
                         $i++;
@@ -748,7 +843,7 @@ class HarvestApp
                         'number'     => $number,
                         'notes'      => $invData['notes'],
                         'issue_date' => date('Y-m-d'),
-                        'line_items' => array_values($lineItems),
+                        'line_items' => array_values($groupedLineItems),
                     );
 
                     if (in_array($daysToPay, [
