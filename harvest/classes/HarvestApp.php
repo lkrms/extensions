@@ -1,5 +1,7 @@
 <?php
 
+use Lkrms\Curler;
+
 class HarvestApp
 {
     private static $LogPath;
@@ -133,6 +135,7 @@ class HarvestApp
     public static function SaveDataFile($accountId, $dataFile)
     {
         $dataFilePath = self::GetDataFilePath($accountId);
+        self::CheckFileAccess($dataFilePath);
         file_put_contents($dataFilePath, json_encode($dataFile));
     }
 
@@ -174,7 +177,7 @@ class HarvestApp
         if (is_null(self::$DefaultCompany))
         {
             $headers  = self::GetDefaultAccountCredentials()->GetHeaders();
-            $curl     = new Curler(HARVEST_API_ROOT . '/v2/company', $headers);
+            $curl     = new Curler\Curler(HARVEST_API_ROOT . '/v2/company', $headers);
 
             // fetch all of our particulars
             self::$DefaultCompany = $curl->GetJson();
@@ -206,7 +209,7 @@ class HarvestApp
                 'from' => date('Y-m-d', $today),
             );
 
-            $curl                    = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
+            $curl                    = new Curler\Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
             self::$ExistingInvoices  = $curl->GetAllLinkedByEntity('invoices', $query);
         }
 
@@ -261,7 +264,7 @@ class HarvestApp
                 'to'         => $yesterdayYmd,
             );
 
-            $curl   = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $headers);
+            $curl   = new Curler\Curler(HARVEST_API_ROOT . '/v2/time_entries', $headers);
             $times  = $curl->GetAllLinkedByEntity('time_entries', $query);
 
             // 2. collate them by client
@@ -323,7 +326,7 @@ class HarvestApp
                 'to'        => $yesterdayYmd,
             );
 
-            $curl      = new Curler(HARVEST_API_ROOT . '/v2/expenses', $headers);
+            $curl      = new Curler\Curler(HARVEST_API_ROOT . '/v2/expenses', $headers);
             $expenses  = $curl->GetAllLinkedByEntity('expenses', $query);
 
             // 4. collate them by client
@@ -763,7 +766,7 @@ class HarvestApp
                     }
 
                     // create a new invoice
-                    $curl     = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
+                    $curl     = new Curler\Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
                     $invoice  = $curl->PostJson($data);
 
                     // success! prepare the data for substituting into templates
@@ -796,7 +799,7 @@ class HarvestApp
 
                     if ($sendEmail)
                     {
-                        $curl      = new Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
+                        $curl      = new Curler\Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
                         $contacts  = $curl->GetAllLinkedByEntity('contacts', array(
                             'client_id' => $clientId
                         ));
@@ -841,7 +844,7 @@ class HarvestApp
                                 'send_me_a_copy'                 => true,
                             );
 
-                            $curl    = new Curler(HARVEST_API_ROOT . "/v2/invoices/{$invoiceData['id']}/messages", $headers);
+                            $curl    = new Curler\Curler(HARVEST_API_ROOT . "/v2/invoices/{$invoiceData['id']}/messages", $headers);
                             $result  = $curl->PostJson($messageData);
                             HarvestApp::Log("Emailed invoice {$invoiceData['number']} to $clientName with message id {$result['id']}");
                         }
@@ -867,7 +870,7 @@ class HarvestApp
                 $clientId = $recurring['clientId'];
 
                 // retrieve name of client
-                $curl        = new Curler(HARVEST_API_ROOT . "/v2/clients/$clientId", $headers);
+                $curl        = new Curler\Curler(HARVEST_API_ROOT . "/v2/clients/$clientId", $headers);
                 $client      = $curl->GetJson();
                 $clientName  = $client['name'];
 
@@ -1061,7 +1064,7 @@ class HarvestApp
                 }
 
                 // create a new invoice
-                $curl     = new Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
+                $curl     = new Curler\Curler(HARVEST_API_ROOT . '/v2/invoices', $headers);
                 $invoice  = $curl->PostJson($data);
 
                 // success! prepare the data for substituting into templates
@@ -1078,7 +1081,7 @@ class HarvestApp
 
                 if ($sendEmail)
                 {
-                    $curl      = new Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
+                    $curl      = new Curler\Curler(HARVEST_API_ROOT . '/v2/contacts', $headers);
                     $contacts  = $curl->GetAllLinkedByEntity('contacts', array(
                         'client_id' => $clientId
                     ));
@@ -1123,7 +1126,7 @@ class HarvestApp
                             'send_me_a_copy'                 => true,
                         );
 
-                        $curl    = new Curler(HARVEST_API_ROOT . "/v2/invoices/{$invoiceData['id']}/messages", $headers);
+                        $curl    = new Curler\Curler(HARVEST_API_ROOT . "/v2/invoices/{$invoiceData['id']}/messages", $headers);
                         $result  = $curl->PostJson($messageData);
                         HarvestApp::Log("Emailed invoice {$invoiceData['number']} to $clientName with message id {$result['id']}");
                     }
@@ -1264,7 +1267,7 @@ class HarvestApp
                 'is_active' => 'true',
             );
 
-            $curl         = new Curler(HARVEST_API_ROOT . '/v2/users', $headers);
+            $curl         = new Curler\Curler(HARVEST_API_ROOT . '/v2/users', $headers);
             $users        = $curl->GetAllLinkedByEntity('users', $query);
             $contractors  = array_filter($users,
 
@@ -1286,7 +1289,7 @@ class HarvestApp
                     'to'         => $endYmd,
                 );
 
-                $curl   = new Curler(HARVEST_API_ROOT . '/v2/time_entries', $headers);
+                $curl   = new Curler\Curler(HARVEST_API_ROOT . '/v2/time_entries', $headers);
                 $times  = $curl->GetAllLinkedByEntity('time_entries', $query);
 
                 foreach ($times as $time)

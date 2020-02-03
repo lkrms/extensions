@@ -1,0 +1,6 @@
+{
+    "name": "lkrms/harvest-automation",
+    "require": {
+        "lkrms/curler": "*"
+    }
+}

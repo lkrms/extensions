@@ -1,3 +1,7 @@
-/data/*.json
-/log/*.log*
+/vendor
+/*.phar
+*.log
+
+/data
+/log
 /config.php

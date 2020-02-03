@@ -1,5 +1,7 @@
 <?php
 
+use Lkrms\Curler;
+
 class HarvestCredentials
 {
     private $AccountId;
@@ -24,7 +26,7 @@ class HarvestCredentials
         $this->Token      = $token;
 
         // retrieve our user object (doubles as a credential test)
-        $curl  = new Curler(HARVEST_API_ROOT . '/v2/users/me', $this->GetHeaders());
+        $curl  = new Curler\Curler(HARVEST_API_ROOT . '/v2/users/me', $this->GetHeaders());
         $me    = $curl->GetJson();
 
         // if we get to here, the credentials worked
@@ -35,7 +37,7 @@ class HarvestCredentials
         $this->IsProjectManager  = $me['is_project_manager'];
 
         // get company details too
-        $curl               = new Curler(HARVEST_API_ROOT . '/v2/company', $this->GetHeaders());
+        $curl               = new Curler\Curler(HARVEST_API_ROOT . '/v2/company', $this->GetHeaders());
         $company            = $curl->GetJson();
         $this->CompanyName  = $company['name'];
     }
@@ -59,7 +61,7 @@ class HarvestCredentials
 
     public function GetHeaders()
     {
-        $headers = new CurlerHeader();
+        $headers = new Curler\CurlerHeader();
         $headers->SetHeader('Harvest-Account-ID', $this->AccountId);
         $headers->SetHeader('Authorization', "Bearer {$this->Token}");
 
@@ -67,4 +69,3 @@ class HarvestCredentials
     }
 }
 
-// PRETTY_NESTED_ARRAYS,0
