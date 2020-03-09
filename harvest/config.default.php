@@ -126,3 +126,4 @@ define('HARVEST_REPORT_EMAIL', 'accounts@mydomain.com');
 define('HARVEST_LOCALE', 'en_AU');
 define('HARVEST_TIMEZONE', 'Australia/Sydney');
 define('HARVEST_DEFAULT_CURRENCY', 'AUD');
+define('HARVEST_HEADING_REGEX', '/^(#O[0-9]+: .*|[^- #].*:)$/');

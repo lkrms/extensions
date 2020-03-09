@@ -802,7 +802,7 @@ class HarvestApp
                             {
                                 $dl = trim($dl);
 
-                                if (preg_match('/^#O[0-9]+: .*/', $dl))
+                                if (preg_match(HARVEST_HEADING_REGEX, $dl))
                                 {
                                     $heading = $dl;
 
